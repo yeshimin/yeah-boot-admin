@@ -29,3 +29,17 @@ a,
     display: block;
   }
 }
+
+.search-form {
+  flex-wrap: wrap;
+  gap: 8px 0;
+}
+
+.search-form .el-select {
+  width: 180px;
+}
+
+.search-form .el-date-editor.el-input__wrapper,
+.search-form .el-date-editor.el-range-editor {
+  width: 260px;
+}

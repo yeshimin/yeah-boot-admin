@@ -2,28 +2,30 @@
   <header class="header-container">
     <div class="header-left">
       <el-button
-        type="text"
-        icon="Menu"
+        link
         class="header-collapse-btn"
         @click="toggleSidebar"
-      ></el-button>
+      >
+        <el-icon class="header-collapse-icon">
+          <component :is="collapseIcon" />
+        </el-icon>
+      </el-button>
       <el-breadcrumb class="header-breadcrumb">
-        <el-breadcrumb-item
-          v-for="(item, index) in breadcrumbList"
-          :key="index"
-          :to="item?.path"
-          v-if="item && item.path"
-        >
-          {{ item.title }}
-        </el-breadcrumb-item>
-        <el-breadcrumb-item v-else-if="item">{{ item.title }}</el-breadcrumb-item>
+        <template v-for="(item, index) in breadcrumbList" :key="index">
+          <el-breadcrumb-item v-if="item.path" :to="item.path">
+            {{ item.title }}
+          </el-breadcrumb-item>
+          <el-breadcrumb-item v-else>
+            {{ item.title }}
+          </el-breadcrumb-item>
+        </template>
       </el-breadcrumb>
     </div>
     <div class="header-right">
       <el-dropdown trigger="click" @command="handleCommand">
         <div class="user-info">
-          <el-avatar :size="32" :src="userInfo.avatar || defaultAvatar"></el-avatar>
-          <span class="user-name">{{ userInfo.name }}</span>
+          <el-avatar :size="32" :src="avatarUrl || defaultAvatar"></el-avatar>
+          <span class="user-name">{{ authStore.displayName }}</span>
           <el-icon class="el-icon--right"><arrow-down /></el-icon>
         </div>
         <template #dropdown>
@@ -48,29 +50,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { ArrowDown, User, Setting, SwitchButton } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { ArrowDown, Expand, Fold, User, Setting, SwitchButton } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const route = useRoute()
+const appStore = useAppStore()
+const authStore = useAuthStore()
 
 // 默认头像
 const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
-
-// 用户信息
-const userInfo = ref({
-  id: '1',
-  name: '管理员',
-  username: 'admin',
-  email: 'admin@example.com',
-  phone: '13800138000',
-  avatar: '',
-  role: '管理员',
-  dept: '技术部',
-  status: 1
-})
 
 // 动态计算面包屑
 const breadcrumbList = computed(() => {
@@ -96,22 +89,26 @@ const breadcrumbList = computed(() => {
   return breadcrumbs
 })
 
-// 监听路由变化，更新面包屑
-watch(
-  () => route.path,
-  () => {
-    // 路由变化时，面包屑会自动更新
+const collapseIcon = computed(() => (appStore.sidebarCollapsed ? Expand : Fold))
+
+const avatarUrl = computed(() => {
+  const avatar = authStore.mine?.user?.avatar
+  if (!avatar) {
+    return ''
   }
-)
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar
+  }
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8080'}${avatar}`
+})
 
 // 切换侧边栏折叠状态
 const toggleSidebar = () => {
-  // 此处可以通过 Pinia 或 Event Bus 传递折叠状态
-  console.log('Toggle sidebar')
+  appStore.toggleSidebar()
 }
 
 // 处理下拉菜单命令
-const handleCommand = (command: string) => {
+const handleCommand = async (command: string) => {
   switch (command) {
     case 'profile':
       ElMessage.info('个人中心功能待实现')
@@ -120,8 +117,7 @@ const handleCommand = (command: string) => {
       ElMessage.info('设置功能待实现')
       break
     case 'logout':
-      // 退出登录逻辑
-      localStorage.removeItem('token')
+      await authStore.logout()
       router.push('/login')
       ElMessage.success('退出登录成功')
       break
@@ -148,7 +144,21 @@ const handleCommand = (command: string) => {
 
 .header-collapse-btn {
   margin-right: 20px;
-  font-size: 20px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  color: #303133;
+  background-color: #f5f7fa;
+}
+
+.header-collapse-btn:hover {
+  color: #409eff;
+  background-color: #ecf5ff;
+}
+
+.header-collapse-icon {
+  font-size: 18px;
 }
 
 .header-breadcrumb {

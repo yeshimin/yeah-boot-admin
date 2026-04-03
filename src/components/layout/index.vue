@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <div class="sidebar-wrapper" :class="{ 'sidebar-collapsed': collapsed }">
+    <div class="sidebar-wrapper" :class="{ 'sidebar-collapsed': appStore.sidebarCollapsed }">
       <LayoutSidebar />
     </div>
     <div class="main-wrapper">
@@ -13,18 +13,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import LayoutHeader from './LayoutHeader.vue'
 import LayoutSidebar from './LayoutSidebar.vue'
 import LayoutContent from './LayoutContent.vue'
+import { useAppStore } from '@/stores/app'
 
-// 侧边栏折叠状态
-const collapsed = ref(false)
-
-// 切换侧边栏折叠状态
-const toggleSidebar = () => {
-  collapsed.value = !collapsed.value
-}
+const appStore = useAppStore()
 </script>
 
 <style scoped>

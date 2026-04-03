@@ -141,6 +141,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 // 表格加载状态
 const tableLoading = ref(false)
@@ -307,15 +308,17 @@ const deptFormRef = ref<FormInstance>()
 
 // 部门表单数据
 const deptForm = reactive({
-  id: '',
+  id: 0,
   name: '',
   code: '',
   parentId: 0,
+  parentName: '',
   manager: '',
   phone: '',
   sort: 0,
   status: 1,
-  remark: ''
+  remark: '',
+  createTime: ''
 })
 
 // 部门表单验证规则
@@ -479,15 +482,17 @@ const handleSubmitDept = async () => {
 // 重置部门表单
 const resetDeptForm = () => {
   Object.assign(deptForm, {
-    id: '',
+    id: 0,
     name: '',
     code: '',
     parentId: 0,
+    parentName: '',
     manager: '',
     phone: '',
     sort: 0,
     status: 1,
-    remark: ''
+    remark: '',
+    createTime: ''
   })
   if (deptFormRef.value) {
     deptFormRef.value.resetFields()

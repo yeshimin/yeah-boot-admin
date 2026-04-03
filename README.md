@@ -1,48 +1,70 @@
 # yeah-boot-admin
 
-This template should help get you started developing with Vue 3 in Vite.
+`yeah-boot-admin` 是一个准备按高规格标准持续建设的自研后台脚手架项目。
 
-## Recommended IDE Setup
+项目最初参考过若依体系的前端思路，但后续目标已经调整为：沉淀一套更易维护、更适合长期演进、更适合开源协作的前后端脚手架基础设施。
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## 当前定位
 
-## Recommended Browser Setup
+- 自研后台管理脚手架
+- 面向长期维护和二次开发
+- 以工程质量、规范一致性、文档完整性为第一优先级
+- 目标是可开源，而不是一次性的业务模板
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+## 当前状态
 
-## Type Support for `.vue` Imports in TS
+仓库目前仍处于前端后台原型阶段，部分页面和结构已存在，但工程规范、基础设施抽象和文档体系仍在建设中。
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+后续开发将优先推进：
 
-## Customize configuration
+- 架构收敛
+- 目录规范
+- 路由与权限设计
+- 请求层与状态管理设计
+- 通用后台组件抽象
+- 项目文档与开发日志制度化
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+## 文档入口
 
-## Project Setup
+- 项目日志：[docs/PROJECT_LOG.md](./docs/PROJECT_LOG.md)
+- 架构设计：[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+
+## 开发环境
+
+### Node 版本
+
+- `^20.19.0 || >=22.12.0`
+
+### 安装依赖
 
 ```sh
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+### 本地开发
 
 ```sh
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+### 类型检查与构建
 
 ```sh
 npm run build
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### 代码检查
 
 ```sh
 npm run lint
 ```
+
+## 后续建议
+
+在继续铺业务页面前，建议优先补齐以下内容：
+
+1. 第一版架构设计文档
+2. 目录与命名规范
+3. 请求层、权限层、状态层统一方案
+4. 样板业务模块设计
+5. 持续更新的开发日志

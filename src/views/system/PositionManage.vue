@@ -14,8 +14,8 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
-            <el-option label="启用" :value="1"></el-option>
-            <el-option label="禁用" :value="0"></el-option>
+            <el-option label="启用" value="1"></el-option>
+            <el-option label="禁用" value="2"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -42,7 +42,7 @@
             <el-switch
               v-model="scope.row.status"
               active-value="1"
-              inactive-value="0"
+              inactive-value="2"
               @change="handleStatusChange(scope.row)"
             ></el-switch>
           </template>
@@ -93,7 +93,7 @@
           <el-input v-model="positionForm.code" placeholder="请输入岗位编码"></el-input>
         </el-form-item>
         <el-form-item label="排序" prop="sort">
-          <el-input-number v-model="positionForm.sort" :min="0" :max="999"></el-input-number>
+          <el-input-number v-model="positionForm.sort" :min="1" :max="999"></el-input-number>
         </el-form-item>
         <el-form-item label="备注" prop="remark">
           <el-input
@@ -104,7 +104,7 @@
           ></el-input>
         </el-form-item>
         <el-form-item label="状态" prop="status">
-          <el-switch v-model="positionForm.status" active-value="1" inactive-value="0"></el-switch>
+          <el-switch v-model="positionForm.status" active-value="1" inactive-value="2"></el-switch>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -122,6 +122,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { createPost, deletePosts, getPostDetail, queryPosts, updatePost } from '@/api/upms'
+import { buildConditions } from '@/utils/query'
 
 // 表格加载状态
 const tableLoading = ref(false)
@@ -143,98 +145,7 @@ const pagination = reactive({
 const selectedPositions = ref<any[]>([])
 
 // 岗位列表数据
-const positionList = ref([
-  {
-    id: 1,
-    name: '总经理',
-    code: 'GM',
-    sort: 1,
-    status: 1,
-    remark: '公司总经理',
-    createTime: '2024-01-01 12:00:00'
-  },
-  {
-    id: 2,
-    name: '技术总监',
-    code: 'CTO',
-    sort: 2,
-    status: 1,
-    remark: '技术部门负责人',
-    createTime: '2024-01-02 12:00:00'
-  },
-  {
-    id: 3,
-    name: '前端经理',
-    code: 'FE_MANAGER',
-    sort: 3,
-    status: 1,
-    remark: '前端开发团队负责人',
-    createTime: '2024-01-03 12:00:00'
-  },
-  {
-    id: 4,
-    name: '后端经理',
-    code: 'BE_MANAGER',
-    sort: 4,
-    status: 1,
-    remark: '后端开发团队负责人',
-    createTime: '2024-01-03 12:00:00'
-  },
-  {
-    id: 5,
-    name: '测试经理',
-    code: 'TEST_MANAGER',
-    sort: 5,
-    status: 1,
-    remark: '测试团队负责人',
-    createTime: '2024-01-03 12:00:00'
-  },
-  {
-    id: 6,
-    name: '前端开发工程师',
-    code: 'FE_DEVELOPER',
-    sort: 6,
-    status: 1,
-    remark: '前端开发工程师',
-    createTime: '2024-01-04 12:00:00'
-  },
-  {
-    id: 7,
-    name: '后端开发工程师',
-    code: 'BE_DEVELOPER',
-    sort: 7,
-    status: 1,
-    remark: '后端开发工程师',
-    createTime: '2024-01-04 12:00:00'
-  },
-  {
-    id: 8,
-    name: '测试工程师',
-    code: 'TEST_ENGINEER',
-    sort: 8,
-    status: 1,
-    remark: '测试工程师',
-    createTime: '2024-01-04 12:00:00'
-  },
-  {
-    id: 9,
-    name: 'UI设计师',
-    code: 'UI_DESIGNER',
-    sort: 9,
-    status: 1,
-    remark: 'UI设计师',
-    createTime: '2024-01-05 12:00:00'
-  },
-  {
-    id: 10,
-    name: '产品经理',
-    code: 'PRODUCT_MANAGER',
-    sort: 10,
-    status: 1,
-    remark: '产品经理',
-    createTime: '2024-01-05 12:00:00'
-  }
-])
+const positionList = ref<any[]>([])
 
 // 弹窗控制
 const dialogVisible = ref(false)
@@ -245,12 +156,13 @@ const positionFormRef = ref<FormInstance>()
 
 // 岗位表单数据
 const positionForm = reactive({
-  id: '',
+  id: 0,
   name: '',
   code: '',
-  sort: 0,
-  status: 1,
-  remark: ''
+  sort: 1,
+  status: '1',
+  remark: '',
+  createTime: ''
 })
 
 // 岗位表单验证规则
@@ -270,45 +182,55 @@ const positionRules = reactive<FormRules>({
 
 // 页面加载时获取岗位列表
 onMounted(() => {
-  getPositionList()
+  void getPositionList()
 })
 
 // 获取岗位列表
-const getPositionList = () => {
+const getPositionList = async () => {
   tableLoading.value = true
-  // 模拟异步请求
-  setTimeout(() => {
-    pagination.total = positionList.value.length
+  try {
+    const response = await queryPosts({
+      current: pagination.currentPage,
+      size: pagination.pageSize,
+      conditions_: buildConditions([
+        { field: 'name', operator: 'like', value: searchForm.name },
+      ]),
+      status: searchForm.status || undefined,
+    })
+
+    positionList.value = response.data.records
+    pagination.total = response.data.total
+  } finally {
     tableLoading.value = false
-  }, 500)
+  }
 }
 
 // 搜索岗位
-const handleSearch = () => {
+const handleSearch = async () => {
   pagination.currentPage = 1
-  getPositionList()
+  await getPositionList()
 }
 
 // 重置搜索表单
-const handleReset = () => {
+const handleReset = async () => {
   Object.assign(searchForm, {
     name: '',
     status: ''
   })
   pagination.currentPage = 1
-  getPositionList()
+  await getPositionList()
 }
 
 // 分页大小变化
-const handleSizeChange = (size: number) => {
+const handleSizeChange = async (size: number) => {
   pagination.pageSize = size
-  getPositionList()
+  await getPositionList()
 }
 
 // 当前页码变化
-const handleCurrentChange = (page: number) => {
+const handleCurrentChange = async (page: number) => {
   pagination.currentPage = page
-  getPositionList()
+  await getPositionList()
 }
 
 // 选择岗位变化
@@ -324,34 +246,49 @@ const handleAddPosition = () => {
 }
 
 // 编辑岗位
-const handleEditPosition = (row: any) => {
+const handleEditPosition = async (row: any) => {
   dialogTitle.value = '编辑岗位'
-  Object.assign(positionForm, row)
+  const response = await getPostDetail(row.id)
+  Object.assign(positionForm, {
+    id: response.data.id,
+    name: response.data.name,
+    code: response.data.code || '',
+    sort: response.data.sort || 1,
+    status: response.data.status || '1',
+    remark: response.data.remark || '',
+    createTime: response.data.createTime || '',
+  })
   dialogVisible.value = true
 }
 
 // 删除岗位
-const handleDeletePosition = (row: any) => {
+const handleDeletePosition = async (row: any) => {
   ElMessageBox.confirm('确定要删除该岗位吗？', '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    // 模拟删除操作
-    const index = positionList.value.findIndex(item => item.id === row.id)
-    if (index > -1) {
-      positionList.value.splice(index, 1)
-      ElMessage.success('删除成功')
-      getPositionList()
-    }
+  }).then(async () => {
+    await deletePosts([row.id])
+    ElMessage.success('删除成功')
+    await getPositionList()
   }).catch(() => {
     // 取消删除
   })
 }
 
 // 状态变化
-const handleStatusChange = (row: any) => {
-  ElMessage.success(`岗位${row.status === 1 ? '启用' : '禁用'}成功`)
+const handleStatusChange = async (row: any) => {
+  const nextStatus = row.status
+  const previousStatus = nextStatus === '1' ? '2' : '1'
+  try {
+    await updatePost({
+      id: row.id,
+      status: nextStatus,
+    })
+    ElMessage.success(`岗位${nextStatus === '1' ? '启用' : '禁用'}成功`)
+  } catch {
+    row.status = previousStatus
+  }
 }
 
 // 提交岗位表单
@@ -359,26 +296,24 @@ const handleSubmitPosition = async () => {
   if (!positionFormRef.value) return
   try {
     await positionFormRef.value.validate()
-    // 模拟提交
+    const payload = {
+      id: positionForm.id || undefined,
+      name: positionForm.name,
+      code: positionForm.code,
+      sort: positionForm.sort,
+      status: positionForm.status,
+      remark: positionForm.remark || undefined,
+    }
+
     if (positionForm.id) {
-      // 编辑岗位
-      const index = positionList.value.findIndex(item => item.id === positionForm.id)
-      if (index > -1) {
-        positionList.value[index] = { ...positionForm }
-        ElMessage.success('编辑岗位成功')
-      }
+      await updatePost(payload)
+      ElMessage.success('编辑岗位成功')
     } else {
-      // 新增岗位
-      const newPosition = {
-        ...positionForm,
-        id: Date.now(),
-        createTime: new Date().toISOString().slice(0, 19).replace('T', ' ')
-      }
-      positionList.value.unshift(newPosition)
+      await createPost(payload)
       ElMessage.success('新增岗位成功')
     }
     dialogVisible.value = false
-    getPositionList()
+    await getPositionList()
   } catch (error) {
     console.log('表单验证失败', error)
   }
@@ -387,12 +322,13 @@ const handleSubmitPosition = async () => {
 // 重置岗位表单
 const resetPositionForm = () => {
   Object.assign(positionForm, {
-    id: '',
+    id: 0,
     name: '',
     code: '',
-    sort: 0,
-    status: 1,
-    remark: ''
+    sort: 1,
+    status: '1',
+    remark: '',
+    createTime: ''
   })
   if (positionFormRef.value) {
     positionFormRef.value.resetFields()

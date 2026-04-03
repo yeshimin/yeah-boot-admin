@@ -11,79 +11,30 @@
         router
         :unique-opened="true"
       >
-        <el-sub-menu index="system" v-for="menu in menuList" :key="menu.index">
-          <template #title>
-            <el-icon><component :is="menu.icon" /></el-icon>
-            <span>{{ menu.title }}</span>
-          </template>
-          <el-menu-item
-            v-for="subMenu in menu.children" :key="subMenu.index"
-            :index="subMenu.path"
-          >
-            <el-icon><component :is="subMenu.icon" /></el-icon>
-            <span>{{ subMenu.title }}</span>
-          </el-menu-item>
-        </el-sub-menu>
+        <LayoutMenuNode v-for="menu in menuList" :key="menu.id" :node="menu" />
       </el-menu>
     </el-scrollbar>
   </aside>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, markRaw } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Setting, User, UserFilled, Menu, OfficeBuilding, Position, Briefcase } from '@element-plus/icons-vue'
+import LayoutMenuNode from './LayoutMenuNode.vue'
+import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
-
-// 侧边栏折叠状态
-const isCollapse = ref(false)
+const appStore = useAppStore()
+const authStore = useAuthStore()
 
 // 当前激活的菜单
 const activeMenu = computed(() => {
   return route.path
 })
 
-// 菜单数据
-const menuList = ref([
-  {
-    index: 'system',
-    title: '系统管理',
-    icon: markRaw(Setting),
-    children: [
-      {
-        index: 'user',
-        title: '用户管理',
-        path: '/system/user',
-        icon: markRaw(User)
-      },
-      {
-        index: 'role',
-        title: '角色管理',
-        path: '/system/role',
-        icon: markRaw(UserFilled)
-      },
-      {
-        index: 'resource',
-        title: '资源管理',
-        path: '/system/resource',
-        icon: markRaw(Menu)
-      },
-      {
-        index: 'org',
-        title: '组织架构',
-        path: '/system/org',
-        icon: markRaw(OfficeBuilding)
-      },
-      {
-        index: 'position',
-        title: '岗位管理',
-        path: '/system/position',
-        icon: markRaw(Position)
-      }
-    ]
-  }
-])
+const isCollapse = computed(() => appStore.sidebarCollapsed)
+const menuList = computed(() => authStore.sidebarMenus)
 </script>
 
 <style scoped>

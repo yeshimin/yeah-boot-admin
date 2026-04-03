@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 // 引入 Layout 组件
 const Layout = () => import('../components/layout/index.vue')
@@ -31,6 +32,8 @@ const RoleManage = () => import('../views/system/RoleManage.vue')
 const ResourceManage = () => import('../views/system/ResourceManage.vue')
 const OrgManage = () => import('../views/system/OrgManage.vue')
 const PositionManage = () => import('../views/system/PositionManage.vue')
+const DictManage = () => import('../views/system/DictManage.vue')
+const LogManage = () => import('../views/system/LogManage.vue')
 
 // 动态路由
 const asyncRoutes = [
@@ -63,13 +66,25 @@ const asyncRoutes = [
         path: '/system/org',
         name: 'system-org',
         component: OrgManage,
-        meta: { title: '组织架构' },
+        meta: { title: '组织管理' },
       },
       {
         path: '/system/position',
         name: 'system-position',
         component: PositionManage,
         meta: { title: '岗位管理' },
+      },
+      {
+        path: '/system/dict',
+        name: 'system-dict',
+        component: DictManage,
+        meta: { title: '字典管理' },
+      },
+      {
+        path: '/system/log',
+        name: 'system-log',
+        component: LogManage,
+        meta: { title: '系统日志' },
       },
     ],
   },
@@ -83,21 +98,44 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
+  const authStore = useAuthStore()
+
   // 设置页面标题
   document.title = `${to.meta.title || '管理后台'}`
 
-  // 获取 token
-  const token = localStorage.getItem('token')
-
   // 不需要登录的页面直接放行
   if (to.path === '/login') {
+    if (authStore.token) {
+      return '/'
+    }
     return true
   }
 
   // 没有 token 跳转到登录页面
-  if (!token) {
-    return '/login'
+  if (!authStore.token) {
+    return {
+      path: '/login',
+      query: {
+        redirect: to.fullPath,
+      },
+    }
+  }
+
+  try {
+    await authStore.bootstrap()
+  } catch {
+    await authStore.clearAuth()
+    return {
+      path: '/login',
+      query: {
+        redirect: to.fullPath,
+      },
+    }
+  }
+
+  if (to.path.startsWith('/system/') && !authStore.canAccessPath(to.path)) {
+    return authStore.firstAccessiblePath
   }
 
   // 有 token 放行

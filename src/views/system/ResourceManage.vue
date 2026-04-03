@@ -14,15 +14,16 @@
         </el-form-item>
         <el-form-item label="资源类型">
           <el-select v-model="searchForm.type" placeholder="请选择资源类型" clearable>
-            <el-option label="菜单" value="menu"></el-option>
-            <el-option label="按钮" value="button"></el-option>
-            <el-option label="API" value="api"></el-option>
+            <el-option label="菜单" :value="1"></el-option>
+            <el-option label="页面" :value="2"></el-option>
+            <el-option label="按钮" :value="3"></el-option>
+            <el-option label="接口" :value="4"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
-            <el-option label="启用" :value="1"></el-option>
-            <el-option label="禁用" :value="0"></el-option>
+            <el-option label="启用" value="1"></el-option>
+            <el-option label="禁用" value="2"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -57,7 +58,7 @@
             <el-switch
               v-model="scope.row.status"
               active-value="1"
-              inactive-value="0"
+              inactive-value="2"
               @change="handleStatusChange(scope.row)"
             ></el-switch>
           </template>
@@ -91,7 +92,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="500px"
+      width="640px"
       @close="handleDialogClose"
     >
       <el-form
@@ -100,27 +101,62 @@
         :rules="resourceRules"
         label-width="100px"
       >
+        <el-form-item label="上级资源" prop="parentId">
+          <el-select v-model="resourceForm.parentId" placeholder="请选择上级资源" clearable>
+            <el-option label="顶级资源" :value="0"></el-option>
+            <el-option
+              v-for="item in parentOptions"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id"
+            ></el-option>
+          </el-select>
+        </el-form-item>
         <el-form-item label="资源名称" prop="name">
           <el-input v-model="resourceForm.name" placeholder="请输入资源名称"></el-input>
         </el-form-item>
         <el-form-item label="资源类型" prop="type">
           <el-select v-model="resourceForm.type" placeholder="请选择资源类型">
-            <el-option label="菜单" value="menu"></el-option>
-            <el-option label="按钮" value="button"></el-option>
-            <el-option label="API" value="api"></el-option>
+            <el-option label="菜单" :value="1"></el-option>
+            <el-option label="页面" :value="2"></el-option>
+            <el-option label="按钮" :value="3"></el-option>
+            <el-option label="接口" :value="4"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="路径" prop="path">
           <el-input v-model="resourceForm.path" placeholder="请输入路径"></el-input>
         </el-form-item>
+        <el-form-item label="组件" prop="component">
+          <el-input v-model="resourceForm.component" placeholder="请输入前端组件路径"></el-input>
+        </el-form-item>
+        <el-form-item label="图标" prop="icon">
+          <el-input v-model="resourceForm.icon" placeholder="请输入图标名称"></el-input>
+        </el-form-item>
         <el-form-item label="权限标识" prop="permission">
           <el-input v-model="resourceForm.permission" placeholder="请输入权限标识"></el-input>
         </el-form-item>
+        <el-form-item label="外链" prop="isLink">
+          <el-switch v-model="resourceForm.isLink"></el-switch>
+        </el-form-item>
+        <el-form-item label="外链地址" prop="linkUrl" v-if="resourceForm.isLink">
+          <el-input v-model="resourceForm.linkUrl" placeholder="请输入外链地址"></el-input>
+        </el-form-item>
+        <el-form-item label="可见" prop="visible">
+          <el-switch v-model="resourceForm.visible"></el-switch>
+        </el-form-item>
         <el-form-item label="排序" prop="sort">
-          <el-input-number v-model="resourceForm.sort" :min="0" :max="999"></el-input-number>
+          <el-input-number v-model="resourceForm.sort" :min="1" :max="999"></el-input-number>
         </el-form-item>
         <el-form-item label="状态" prop="status">
-          <el-switch v-model="resourceForm.status" active-value="1" inactive-value="0"></el-switch>
+          <el-switch v-model="resourceForm.status" active-value="1" inactive-value="2"></el-switch>
+        </el-form-item>
+        <el-form-item label="备注" prop="remark">
+          <el-input
+            v-model="resourceForm.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入备注"
+          ></el-input>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -137,6 +173,17 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  createResource,
+  deleteResources,
+  getResourceDetail,
+  getResourceTree,
+  queryResources,
+  updateResource,
+} from '@/api/upms'
+import type { ResourceTreeNode } from '@/types/upms'
+import { buildConditions } from '@/utils/query'
 
 // 表格加载状态
 const tableLoading = ref(false)
@@ -144,7 +191,7 @@ const tableLoading = ref(false)
 // 搜索表单
 const searchForm = reactive({
   name: '',
-  type: '',
+  type: '' as '' | number,
   status: ''
 })
 
@@ -157,100 +204,10 @@ const pagination = reactive({
 
 // 选中的资源列表
 const selectedResources = ref<any[]>([])
+const parentOptions = ref<{ id: number; name: string }[]>([])
 
 // 资源列表数据
-const resourceList = ref([
-  {
-    id: 1,
-    name: '系统管理',
-    type: 'menu',
-    path: '/system',
-    permission: 'system:manage',
-    sort: 1,
-    status: 1
-  },
-  {
-    id: 2,
-    name: '用户管理',
-    type: 'menu',
-    path: '/system/user',
-    permission: 'system:user:manage',
-    sort: 2,
-    status: 1
-  },
-  {
-    id: 3,
-    name: '角色管理',
-    type: 'menu',
-    path: '/system/role',
-    permission: 'system:role:manage',
-    sort: 3,
-    status: 1
-  },
-  {
-    id: 4,
-    name: '资源管理',
-    type: 'menu',
-    path: '/system/resource',
-    permission: 'system:resource:manage',
-    sort: 4,
-    status: 1
-  },
-  {
-    id: 5,
-    name: '组织架构',
-    type: 'menu',
-    path: '/system/org',
-    permission: 'system:org:manage',
-    sort: 5,
-    status: 1
-  },
-  {
-    id: 6,
-    name: '岗位管理',
-    type: 'menu',
-    path: '/system/position',
-    permission: 'system:position:manage',
-    sort: 6,
-    status: 1
-  },
-  {
-    id: 7,
-    name: '部门管理',
-    type: 'menu',
-    path: '/system/dept',
-    permission: 'system:dept:manage',
-    sort: 7,
-    status: 1
-  },
-  {
-    id: 8,
-    name: '新增用户',
-    type: 'button',
-    path: '',
-    permission: 'system:user:add',
-    sort: 1,
-    status: 1
-  },
-  {
-    id: 9,
-    name: '编辑用户',
-    type: 'button',
-    path: '',
-    permission: 'system:user:edit',
-    sort: 2,
-    status: 1
-  },
-  {
-    id: 10,
-    name: '删除用户',
-    type: 'button',
-    path: '',
-    permission: 'system:user:delete',
-    sort: 3,
-    status: 1
-  }
-])
+const resourceList = ref<any[]>([])
 
 // 弹窗控制
 const dialogVisible = ref(false)
@@ -261,13 +218,20 @@ const resourceFormRef = ref<FormInstance>()
 
 // 资源表单数据
 const resourceForm = reactive({
-  id: '',
+  id: 0,
+  parentId: 0,
   name: '',
-  type: 'menu',
+  type: 1,
   path: '',
+  component: '',
+  icon: '',
   permission: '',
-  sort: 0,
-  status: 1
+  isLink: false,
+  linkUrl: '',
+  visible: true,
+  sort: 1,
+  status: '1',
+  remark: '',
 })
 
 // 资源表单验证规则
@@ -279,61 +243,77 @@ const resourceRules = reactive<FormRules>({
   type: [
     { required: true, message: '请选择资源类型', trigger: 'change' }
   ],
-  path: [
-    { required: true, message: '请输入路径', trigger: 'blur' },
-    { max: 200, message: '路径不能超过 200 个字符', trigger: 'blur' }
-  ],
-  permission: [
-    { required: true, message: '请输入权限标识', trigger: 'blur' },
-    { max: 100, message: '权限标识不能超过 100 个字符', trigger: 'blur' }
-  ],
   sort: [
     { required: true, message: '请输入排序', trigger: 'blur' }
   ]
 })
 
+const flattenResourceTree = (tree: ResourceTreeNode[], prefix = ''): { id: number; name: string }[] => {
+  return tree.flatMap((node) => {
+    const current = [{ id: node.id, name: `${prefix}${node.name}` }]
+    const children = node.children ? flattenResourceTree(node.children, `${prefix}└─ `) : []
+    return [...current, ...children]
+  })
+}
+
+const loadParentOptions = async () => {
+  const response = await getResourceTree()
+  parentOptions.value = flattenResourceTree(response.data)
+}
+
 // 页面加载时获取资源列表
 onMounted(() => {
-  getResourceList()
+  void Promise.all([loadParentOptions(), getResourceList()])
 })
 
 // 获取资源列表
-const getResourceList = () => {
+const getResourceList = async () => {
   tableLoading.value = true
-  // 模拟异步请求
-  setTimeout(() => {
-    pagination.total = resourceList.value.length
+  try {
+    const response = await queryResources({
+      current: pagination.currentPage,
+      size: pagination.pageSize,
+      conditions_: buildConditions([
+        { field: 'name', operator: 'like', value: searchForm.name },
+      ]),
+      type: searchForm.type || undefined,
+      status: searchForm.status || undefined,
+    })
+
+    resourceList.value = response.data.records
+    pagination.total = response.data.total
+  } finally {
     tableLoading.value = false
-  }, 500)
+  }
 }
 
 // 搜索资源
-const handleSearch = () => {
+const handleSearch = async () => {
   pagination.currentPage = 1
-  getResourceList()
+  await getResourceList()
 }
 
 // 重置搜索表单
-const handleReset = () => {
+const handleReset = async () => {
   Object.assign(searchForm, {
     name: '',
     type: '',
     status: ''
   })
   pagination.currentPage = 1
-  getResourceList()
+  await getResourceList()
 }
 
 // 分页大小变化
-const handleSizeChange = (size: number) => {
+const handleSizeChange = async (size: number) => {
   pagination.pageSize = size
-  getResourceList()
+  await getResourceList()
 }
 
 // 当前页码变化
-const handleCurrentChange = (page: number) => {
+const handleCurrentChange = async (page: number) => {
   pagination.currentPage = page
-  getResourceList()
+  await getResourceList()
 }
 
 // 选择资源变化
@@ -349,34 +329,56 @@ const handleAddResource = () => {
 }
 
 // 编辑资源
-const handleEditResource = (row: any) => {
+const handleEditResource = async (row: any) => {
   dialogTitle.value = '编辑资源'
-  Object.assign(resourceForm, row)
+  const response = await getResourceDetail(row.id)
+  Object.assign(resourceForm, {
+    id: response.data.id,
+    parentId: response.data.parentId || 0,
+    name: response.data.name,
+    type: response.data.type,
+    path: response.data.path || '',
+    component: response.data.component || '',
+    icon: response.data.icon || '',
+    permission: response.data.permission || '',
+    isLink: response.data.isLink || false,
+    linkUrl: response.data.linkUrl || '',
+    visible: response.data.visible ?? true,
+    sort: response.data.sort || 1,
+    status: response.data.status || '1',
+    remark: response.data.remark || '',
+  })
   dialogVisible.value = true
 }
 
 // 删除资源
-const handleDeleteResource = (row: any) => {
+const handleDeleteResource = async (row: any) => {
   ElMessageBox.confirm('确定要删除该资源吗？', '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    // 模拟删除操作
-    const index = resourceList.value.findIndex(item => item.id === row.id)
-    if (index > -1) {
-      resourceList.value.splice(index, 1)
-      ElMessage.success('删除成功')
-      getResourceList()
-    }
+  }).then(async () => {
+    await deleteResources([row.id])
+    ElMessage.success('删除成功')
+    await Promise.all([loadParentOptions(), getResourceList()])
   }).catch(() => {
     // 取消删除
   })
 }
 
 // 状态变化
-const handleStatusChange = (row: any) => {
-  ElMessage.success(`资源${row.status === 1 ? '启用' : '禁用'}成功`)
+const handleStatusChange = async (row: any) => {
+  const nextStatus = row.status
+  const previousStatus = nextStatus === '1' ? '2' : '1'
+  try {
+    await updateResource({
+      id: row.id,
+      status: nextStatus,
+    })
+    ElMessage.success(`资源${nextStatus === '1' ? '启用' : '禁用'}成功`)
+  } catch {
+    row.status = previousStatus
+  }
 }
 
 // 提交资源表单
@@ -384,25 +386,32 @@ const handleSubmitResource = async () => {
   if (!resourceFormRef.value) return
   try {
     await resourceFormRef.value.validate()
-    // 模拟提交
+    const payload = {
+      id: resourceForm.id || undefined,
+      parentId: resourceForm.parentId || undefined,
+      name: resourceForm.name,
+      type: resourceForm.type,
+      path: resourceForm.path || undefined,
+      component: resourceForm.component || undefined,
+      icon: resourceForm.icon || undefined,
+      permission: resourceForm.permission || undefined,
+      isLink: resourceForm.isLink,
+      linkUrl: resourceForm.linkUrl || undefined,
+      visible: resourceForm.visible,
+      sort: resourceForm.sort,
+      status: resourceForm.status,
+      remark: resourceForm.remark || undefined,
+    }
+
     if (resourceForm.id) {
-      // 编辑资源
-      const index = resourceList.value.findIndex(item => item.id === resourceForm.id)
-      if (index > -1) {
-        resourceList.value[index] = { ...resourceForm }
-        ElMessage.success('编辑资源成功')
-      }
+      await updateResource(payload)
+      ElMessage.success('编辑资源成功')
     } else {
-      // 新增资源
-      const newResource = {
-        ...resourceForm,
-        id: Date.now()
-      }
-      resourceList.value.unshift(newResource)
+      await createResource(payload)
       ElMessage.success('新增资源成功')
     }
     dialogVisible.value = false
-    getResourceList()
+    await Promise.all([loadParentOptions(), getResourceList()])
   } catch (error) {
     console.log('表单验证失败', error)
   }
@@ -411,13 +420,20 @@ const handleSubmitResource = async () => {
 // 重置资源表单
 const resetResourceForm = () => {
   Object.assign(resourceForm, {
-    id: '',
+    id: 0,
+    parentId: 0,
     name: '',
-    type: 'menu',
+    type: 1,
     path: '',
+    component: '',
+    icon: '',
     permission: '',
-    sort: 0,
-    status: 1
+    isLink: false,
+    linkUrl: '',
+    visible: true,
+    sort: 1,
+    status: '1',
+    remark: '',
   })
   if (resourceFormRef.value) {
     resourceFormRef.value.resetFields()
@@ -430,23 +446,31 @@ const handleDialogClose = () => {
 }
 
 // 获取资源类型名称
-const getResourceTypeName = (type: string) => {
+const getResourceTypeName = (type: number | string) => {
   const typeMap: Record<string, string> = {
+    '1': '菜单',
+    '2': '页面',
+    '3': '按钮',
+    '4': '接口',
     menu: '菜单',
     button: '按钮',
-    api: 'API'
+    api: '接口'
   }
-  return typeMap[type] || type
+  return typeMap[String(type)] || String(type)
 }
 
 // 获取资源类型标签类型
-const getResourceTypeTagType = (type: string) => {
+const getResourceTypeTagType = (type: number | string) => {
   const typeMap: Record<string, string> = {
+    '1': 'primary',
+    '2': 'success',
+    '3': 'warning',
+    '4': 'info',
     menu: 'primary',
-    button: 'success',
-    api: 'warning'
+    button: 'warning',
+    api: 'info'
   }
-  return typeMap[type] || 'info'
+  return typeMap[String(type)] || 'info'
 }
 </script>
 
