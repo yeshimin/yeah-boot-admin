@@ -5,6 +5,7 @@
     </div>
     <div class="main-wrapper">
       <LayoutHeader />
+      <LayoutTabs />
       <div class="content-wrapper">
         <LayoutContent />
       </div>
@@ -16,6 +17,7 @@
 import LayoutHeader from './LayoutHeader.vue'
 import LayoutSidebar from './LayoutSidebar.vue'
 import LayoutContent from './LayoutContent.vue'
+import LayoutTabs from './LayoutTabs.vue'
 import { useAppStore } from '@/stores/app'
 
 const appStore = useAppStore()

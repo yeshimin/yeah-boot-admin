@@ -4,6 +4,7 @@ import { getCaptcha as getCaptchaApi, login as loginApi, logout as logoutApi } f
 import { getMine, getMineResources } from '@/api/upms'
 import type { CaptchaVo, LoginRequest, MineVo, ResourceTreeNode } from '@/types/upms'
 import { getToken, removeToken, setToken } from '@/utils/auth'
+import { useAppStore } from './app'
 
 const MENU_ROUTE_MAP: Record<string, string> = {
   '/system/user': '/system/user',
@@ -142,6 +143,7 @@ function collectDescendantActionNodes(node: ResourceTreeNode): ResourceTreeNode[
 let bootstrapPromise: Promise<void> | null = null
 
 export const useAuthStore = defineStore('auth', () => {
+  const appStore = useAppStore()
   const token = ref(getToken())
   const mine = ref<MineVo | null>(null)
   const permissions = ref<string[]>([])
@@ -206,6 +208,7 @@ export const useAuthStore = defineStore('auth', () => {
     permissions.value = []
     resources.value = []
     initialized.value = false
+    appStore.clearPageTags()
     removeToken()
   }
 
