@@ -1,12 +1,5 @@
 <template>
   <div class="dept-manage-container">
-    <div class="page-header">
-      <h2>部门管理</h2>
-      <el-button type="primary" @click="handleAddDept">
-        <el-icon><Plus /></el-icon>新增部门
-      </el-button>
-    </div>
-
     <div class="search-bar">
       <el-form :inline="true" :model="searchForm" class="search-form">
         <el-form-item label="部门名称">
@@ -23,6 +16,14 @@
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
+    </div>
+
+    <div class="action-bar">
+      <div class="action-buttons">
+        <el-button type="primary" @click="handleAddDept">
+          <el-icon><Plus /></el-icon>新增部门
+        </el-button>
+      </div>
     </div>
 
     <div class="table-container">
@@ -508,30 +509,17 @@ const handleDialogClose = () => {
 <style scoped>
 .dept-manage-container {
   width: 100%;
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.page-header {
+  height: 100%;
+  min-height: 100%;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #303133;
+  flex-direction: column;
+  background-color: #fff;
+  padding: 20px;
 }
 
 .search-bar {
   margin-bottom: 20px;
-  padding: 16px;
-  background-color: #f5f7fa;
-  border-radius: 8px;
+  padding: 0;
 }
 
 .search-form {
@@ -541,6 +529,8 @@ const handleDialogClose = () => {
 
 .table-container {
   margin-top: 20px;
+  flex: 1;
+  min-height: 0;
 }
 
 .pagination-container {

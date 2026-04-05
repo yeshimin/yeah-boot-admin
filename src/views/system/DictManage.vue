@@ -1,8 +1,7 @@
 <template>
   <div class="dict-manage-container">
-    <div class="page-header">
-      <h2>字典管理</h2>
-      <div class="header-actions">
+    <div class="action-bar">
+      <div class="action-buttons">
         <el-button
           v-if="authStore.canAction('/system/dict', { names: ['新增根节点', '新增子节点', '新增'], permissions: ['admin:sysDict:create', 'admin:sysDict:crud:create'] })"
           type="primary"
@@ -368,31 +367,17 @@ void loadDictTree()
 <style scoped>
 .dict-manage-container {
   width: 100%;
+  height: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
   background-color: #fff;
-  border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #303133;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
 }
 
 .dict-layout {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: 300px 1fr;
   gap: 20px;
@@ -400,6 +385,7 @@ void loadDictTree()
 
 .dict-tree-panel,
 .dict-detail-panel {
+  min-height: 0;
   border: 1px solid #ebeef5;
   border-radius: 8px;
   padding: 16px;

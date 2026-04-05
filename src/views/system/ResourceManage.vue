@@ -1,16 +1,5 @@
 <template>
   <div class="resource-manage-container">
-    <div class="page-header">
-      <h2>菜单管理</h2>
-      <el-button
-        v-if="authStore.canAction('/system/resource', { names: ['新增资源', '新增菜单', '新增'], permissions: ['admin:sysRes:create', 'admin:sysRes:crud:create'] })"
-        type="primary"
-        @click="handleAddResource"
-      >
-        <el-icon><Plus /></el-icon>新增资源
-      </el-button>
-    </div>
-
     <div class="search-bar">
       <el-form :inline="true" :model="searchForm" class="search-form">
         <el-form-item label="资源名称">
@@ -37,18 +26,28 @@
       </el-form>
     </div>
 
-    <div class="table-container">
-        <el-table
-          v-loading="tableLoading"
-          :data="resourceList"
-          stripe
-          row-key="id"
-          style="width: 100%"
-          default-expand-all
-          :tree-props="{ children: 'children' }"
-          @selection-change="handleSelectionChange"
+    <div class="action-bar">
+      <div class="action-buttons">
+        <el-button
+          v-if="authStore.canAction('/system/resource', { names: ['新增资源', '新增菜单', '新增'], permissions: ['admin:sysRes:create', 'admin:sysRes:crud:create'] })"
+          type="primary"
+          @click="handleAddResource"
         >
-        <el-table-column type="selection" width="55"></el-table-column>
+          <el-icon><Plus /></el-icon>新增菜单
+        </el-button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <el-table
+        v-loading="tableLoading"
+        :data="resourceList"
+        stripe
+        row-key="id"
+        style="width: 100%"
+        default-expand-all
+        :tree-props="{ children: 'children' }"
+      >
         <el-table-column prop="name" label="资源名称" min-width="120"></el-table-column>
         <el-table-column prop="type" label="资源类型" min-width="100">
           <template #default="scope">
@@ -66,6 +65,12 @@
               v-model="scope.row.status"
               active-value="1"
               inactive-value="2"
+              :disabled="
+                !authStore.canAction('/system/resource', {
+                  names: ['编辑资源', '编辑菜单', '编辑'],
+                  permissions: ['admin:sysRes:update', 'admin:sysRes:crud:update'],
+                })
+              "
               @change="handleStatusChange(scope.row)"
             ></el-switch>
           </template>
@@ -106,16 +111,16 @@
         :rules="resourceRules"
         label-width="100px"
       >
-        <el-form-item label="上级资源" prop="parentId">
-          <el-select v-model="resourceForm.parentId" placeholder="请选择上级资源" clearable>
-            <el-option label="顶级资源" :value="0"></el-option>
-            <el-option
-              v-for="item in parentOptions"
-              :key="item.id"
-              :label="item.name"
-              :value="item.id"
-            ></el-option>
-          </el-select>
+        <el-form-item label="上级菜单" prop="parentId">
+          <el-tree-select
+            v-model="resourceForm.parentId"
+            :data="parentOptions"
+            :props="{ value: 'id', label: 'name', children: 'children' }"
+            value-key="id"
+            check-strictly
+            default-expand-all
+            placeholder="请选择上级菜单"
+          />
         </el-form-item>
         <el-form-item label="资源名称" prop="name">
           <el-input v-model="resourceForm.name" placeholder="请输入资源名称"></el-input>
@@ -135,7 +140,19 @@
           <el-input v-model="resourceForm.component" placeholder="请输入前端组件路径"></el-input>
         </el-form-item>
         <el-form-item label="图标" prop="icon">
-          <el-input v-model="resourceForm.icon" placeholder="请输入图标名称"></el-input>
+          <el-popover placement="bottom-start" :width="420" trigger="click">
+            <template #reference>
+              <el-input v-model="resourceForm.icon" placeholder="点击选择图标" readonly>
+                <template #prefix>
+                  <el-icon v-if="resourceForm.icon">
+                    <component :is="resourceForm.icon" />
+                  </el-icon>
+                  <el-icon v-else><Grid /></el-icon>
+                </template>
+              </el-input>
+            </template>
+            <IconSelectPopover v-model="resourceForm.icon" :icons="availableIcons" />
+          </el-popover>
         </el-form-item>
         <el-form-item label="权限标识" prop="permission">
           <el-input v-model="resourceForm.permission" placeholder="请输入权限标识"></el-input>
@@ -176,10 +193,11 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Grid } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import IconSelectPopover from '@/components/layout/IconSelectPopover.vue'
 import {
   createResource,
   deleteResources,
@@ -191,6 +209,24 @@ import type { ResourceTreeNode } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
 
 const authStore = useAuthStore()
+const availableIcons = [
+  'Setting',
+  'User',
+  'Avatar',
+  'Menu',
+  'OfficeBuilding',
+  'Briefcase',
+  'Collection',
+  'Document',
+  'Monitor',
+  'Odometer',
+  'Grid',
+  'Tools',
+  'Link',
+  'Folder',
+  'Bell',
+  'ShoppingCart',
+]
 
 // 表格加载状态
 const tableLoading = ref(false)
@@ -202,16 +238,14 @@ const searchForm = reactive({
   status: ''
 })
 
-// 选中的资源列表
-const selectedResources = ref<any[]>([])
-const parentOptions = ref<{ id: number; name: string }[]>([])
+const parentOptions = ref<any[]>([])
 
 // 资源列表数据
 const resourceList = ref<any[]>([])
 
 // 弹窗控制
 const dialogVisible = ref(false)
-const dialogTitle = ref('新增资源')
+const dialogTitle = ref('新增菜单')
 
 // 资源表单引用
 const resourceFormRef = ref<FormInstance>()
@@ -248,17 +282,15 @@ const resourceRules = reactive<FormRules>({
   ]
 })
 
-const flattenResourceTree = (tree: ResourceTreeNode[], prefix = ''): { id: number; name: string }[] => {
-  return tree.flatMap((node) => {
-    const current = [{ id: node.id, name: `${prefix}${node.name}` }]
-    const children = node.children ? flattenResourceTree(node.children, `${prefix}└─ `) : []
-    return [...current, ...children]
-  })
-}
-
 const loadParentOptions = async () => {
   const response = await getResourceTree()
-  parentOptions.value = flattenResourceTree(response.data)
+  parentOptions.value = [
+    {
+      id: 0,
+      name: '根菜单',
+      children: response.data,
+    },
+  ]
 }
 
 // 页面加载时获取资源列表
@@ -310,25 +342,21 @@ const handleReset = async () => {
   await getResourceList()
 }
 
-// 选择资源变化
-const handleSelectionChange = (selection: any[]) => {
-  selectedResources.value = selection
-}
-
 // 新增资源
 const handleAddResource = () => {
-  dialogTitle.value = '新增资源'
+  dialogTitle.value = '新增菜单'
   resetResourceForm()
+  resourceForm.parentId = 0
   dialogVisible.value = true
 }
 
 // 编辑资源
 const handleEditResource = async (row: any) => {
-  dialogTitle.value = '编辑资源'
+  dialogTitle.value = '编辑菜单'
   const response = await getResourceDetail(row.id)
   Object.assign(resourceForm, {
     id: response.data.id,
-    parentId: response.data.parentId || 0,
+    parentId: Number(response.data.parentId ?? 0),
     name: response.data.name,
     type: response.data.type,
     path: response.data.path || '',
@@ -382,7 +410,7 @@ const handleSubmitResource = async () => {
     await resourceFormRef.value.validate()
     const payload = {
       id: resourceForm.id || undefined,
-      parentId: resourceForm.parentId || undefined,
+      parentId: resourceForm.parentId,
       name: resourceForm.name,
       type: resourceForm.type,
       path: resourceForm.path || undefined,
@@ -399,10 +427,10 @@ const handleSubmitResource = async () => {
 
     if (resourceForm.id) {
       await updateResource(payload)
-      ElMessage.success('编辑资源成功')
+      ElMessage.success('编辑菜单成功')
     } else {
       await createResource(payload)
-      ElMessage.success('新增资源成功')
+      ElMessage.success('新增菜单成功')
     }
     dialogVisible.value = false
     await Promise.all([loadParentOptions(), getResourceList()])
@@ -471,30 +499,17 @@ const getResourceTypeTagType = (type: number | string) => {
 <style scoped>
 .resource-manage-container {
   width: 100%;
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.page-header {
+  height: 100%;
+  min-height: 100%;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #303133;
+  flex-direction: column;
+  background-color: #fff;
+  padding: 20px;
 }
 
 .search-bar {
   margin-bottom: 20px;
-  padding: 16px;
-  background-color: #f5f7fa;
-  border-radius: 8px;
+  padding: 0;
 }
 
 .search-form {
@@ -504,6 +519,8 @@ const getResourceTypeTagType = (type: number | string) => {
 
 .table-container {
   margin-top: 20px;
+  flex: 1;
+  min-height: 0;
 }
 
 .pagination-container {

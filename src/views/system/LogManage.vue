@@ -1,9 +1,5 @@
 <template>
   <div class="log-manage-container">
-    <div class="page-header">
-      <h2>系统日志</h2>
-    </div>
-
     <div class="search-bar">
       <el-form :inline="true" :model="searchForm" class="search-form">
         <el-form-item label="类别">
@@ -49,7 +45,12 @@
       <el-table-column prop="createTime" label="时间" min-width="180"></el-table-column>
       <el-table-column label="操作" width="120" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openDetail(row)">详情</el-button>
+          <el-button
+            v-if="authStore.canAction('/system/log', { names: ['详情', '查看详情'], permissions: ['admin:sysLog:crud:detail', 'admin:sysLog:detail'] })"
+            link
+            type="primary"
+            @click="openDetail(row)"
+          >详情</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -88,10 +89,12 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import { queryLogs } from '@/api/upms'
 import type { SysLogEntity } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
 
+const authStore = useAuthStore()
 const tableLoading = ref(false)
 const detailVisible = ref(false)
 const currentLog = ref<SysLogEntity | null>(null)
@@ -167,30 +170,17 @@ void getLogList()
 <style scoped>
 .log-manage-container {
   width: 100%;
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.page-header {
+  height: 100%;
+  min-height: 100%;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #303133;
+  flex-direction: column;
+  background-color: #fff;
+  padding: 20px;
 }
 
 .search-bar {
   margin-bottom: 20px;
-  padding: 16px;
-  background-color: #f5f7fa;
-  border-radius: 8px;
+  padding: 0;
 }
 
 .search-form {

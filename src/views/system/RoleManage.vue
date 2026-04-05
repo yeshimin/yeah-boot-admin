@@ -1,16 +1,5 @@
 <template>
   <div class="role-manage-container">
-    <div class="page-header">
-      <h2>角色管理</h2>
-      <el-button
-        v-if="authStore.canAction('/system/role', { names: ['新增角色', '新增'], permissions: ['admin:sysRole:create', 'admin:sysRole:crud:create'] })"
-        type="primary"
-        @click="handleAddRole"
-      >
-        <el-icon><Plus /></el-icon>新增角色
-      </el-button>
-    </div>
-
     <div class="search-bar">
       <el-form :inline="true" :model="searchForm" class="search-form">
         <el-form-item label="角色名称">
@@ -27,6 +16,18 @@
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
+    </div>
+
+    <div class="action-bar">
+      <div class="action-buttons">
+        <el-button
+          v-if="authStore.canAction('/system/role', { names: ['新增角色', '新增'], permissions: ['admin:sysRole:create', 'admin:sysRole:crud:create'] })"
+          type="primary"
+          @click="handleAddRole"
+        >
+          <el-icon><Plus /></el-icon>新增角色
+        </el-button>
+      </div>
     </div>
 
     <div class="table-container">
@@ -47,6 +48,12 @@
               v-model="scope.row.status"
               active-value="1"
               inactive-value="2"
+              :disabled="
+                !authStore.canAction('/system/role', {
+                  names: ['编辑角色', '编辑'],
+                  permissions: ['admin:sysRole:update', 'admin:sysRole:crud:update'],
+                })
+              "
               @change="handleStatusChange(scope.row)"
             ></el-switch>
           </template>
@@ -470,30 +477,17 @@ const handlePermissionDialogClose = () => {
 <style scoped>
 .role-manage-container {
   width: 100%;
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.page-header {
+  height: 100%;
+  min-height: 100%;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #303133;
+  flex-direction: column;
+  background-color: #fff;
+  padding: 20px;
 }
 
 .search-bar {
   margin-bottom: 20px;
-  padding: 16px;
-  background-color: #f5f7fa;
-  border-radius: 8px;
+  padding: 0;
 }
 
 .search-form {
@@ -503,6 +497,8 @@ const handlePermissionDialogClose = () => {
 
 .table-container {
   margin-top: 20px;
+  flex: 1;
+  min-height: 0;
 }
 
 .pagination-container {

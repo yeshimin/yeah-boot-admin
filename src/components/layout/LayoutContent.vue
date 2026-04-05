@@ -18,8 +18,9 @@ watch(() => route.path, () => {
 <style scoped>
 .content-container {
   width: 100%;
-  padding: 20px;
-  min-height: calc(100vh - 60px);
-  background-color: #f5f7fa;
+  height: 100%;
+  min-height: 100%;
+  padding: 0;
+  background-color: transparent;
 }
 </style>

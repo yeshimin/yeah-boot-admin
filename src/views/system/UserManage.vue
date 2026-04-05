@@ -1,16 +1,5 @@
 <template>
   <div class="user-manage-container">
-    <div class="page-header">
-      <h2>用户管理</h2>
-      <el-button
-        v-if="authStore.canAction('/system/user', { names: ['新增用户', '新增'], permissions: ['admin:sysUser:create', 'admin:sysUser:crud:create'] })"
-        type="primary"
-        @click="handleAddUser"
-      >
-        <el-icon><Plus /></el-icon>新增用户
-      </el-button>
-    </div>
-
     <div class="page-body">
       <div class="org-tree-panel">
         <div class="org-tree-header">
@@ -69,6 +58,18 @@
           </el-form>
         </div>
 
+        <div class="action-bar">
+          <div class="action-buttons">
+            <el-button
+              v-if="authStore.canAction('/system/user', { names: ['新增用户', '新增'], permissions: ['admin:sysUser:create', 'admin:sysUser:crud:create'] })"
+              type="primary"
+              @click="handleAddUser"
+            >
+              <el-icon><Plus /></el-icon>新增用户
+            </el-button>
+          </div>
+        </div>
+
         <div class="table-container">
           <el-table
             v-loading="tableLoading"
@@ -90,6 +91,12 @@
                   v-model="scope.row.status"
                   active-value="1"
                   inactive-value="2"
+                  :disabled="
+                    !authStore.canAction('/system/user', {
+                      names: ['编辑用户', '编辑'],
+                      permissions: ['admin:sysUser:update', 'admin:sysUser:crud:update'],
+                    })
+                  "
                   @change="handleStatusChange(scope.row)"
                 ></el-switch>
               </template>
@@ -641,19 +648,24 @@ watch(treeFilterText, (value) => {
 <style scoped>
 .user-manage-container {
   width: 100%;
+  height: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
   background-color: #fff;
-  border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
 .page-body {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: 280px 1fr;
   gap: 20px;
 }
 
 .org-tree-panel {
+  min-height: 0;
   border: 1px solid #ebeef5;
   border-radius: 8px;
   background-color: #fff;
@@ -678,27 +690,15 @@ watch(treeFilterText, (value) => {
 }
 
 .user-content-panel {
-  min-width: 0;
-}
-
-.page-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #303133;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
 }
 
 .search-bar {
   margin-bottom: 20px;
-  padding: 16px;
-  background-color: #f5f7fa;
-  border-radius: 8px;
+  padding: 0;
 }
 
 .search-form {
@@ -712,6 +712,8 @@ watch(treeFilterText, (value) => {
 
 .table-container {
   margin-top: 20px;
+  flex: 1;
+  min-height: 0;
 }
 
 .pagination-container {
