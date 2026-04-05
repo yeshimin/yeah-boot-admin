@@ -2,7 +2,11 @@
   <div class="position-manage-container">
     <div class="page-header">
       <h2>岗位管理</h2>
-      <el-button type="primary" @click="handleAddPosition">
+      <el-button
+        v-if="authStore.canAction('/system/position', { names: ['新增岗位', '新增'], permissions: ['admin:sysPost:create', 'admin:sysPost:crud:create'] })"
+        type="primary"
+        @click="handleAddPosition"
+      >
         <el-icon><Plus /></el-icon>新增岗位
       </el-button>
     </div>
@@ -50,10 +54,20 @@
         <el-table-column prop="createTime" label="创建时间" min-width="160"></el-table-column>
         <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="scope">
-            <el-button type="primary" size="small" @click="handleEditPosition(scope.row)">
+            <el-button
+              v-if="authStore.canAction('/system/position', { names: ['编辑岗位', '编辑'], permissions: ['admin:sysPost:update', 'admin:sysPost:crud:update'] })"
+              type="primary"
+              size="small"
+              @click="handleEditPosition(scope.row)"
+            >
               编辑
             </el-button>
-            <el-button type="danger" size="small" @click="handleDeletePosition(scope.row)">
+            <el-button
+              v-if="authStore.canAction('/system/position', { names: ['删除岗位', '删除'], permissions: ['admin:sysPost:delete', 'admin:sysPost:crud:delete'] })"
+              type="danger"
+              size="small"
+              @click="handleDeletePosition(scope.row)"
+            >
               删除
             </el-button>
           </template>
@@ -122,8 +136,11 @@ import { ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 import { createPost, deletePosts, getPostDetail, queryPosts, updatePost } from '@/api/upms'
 import { buildConditions } from '@/utils/query'
+
+const authStore = useAuthStore()
 
 // 表格加载状态
 const tableLoading = ref(false)

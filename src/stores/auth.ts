@@ -15,8 +15,6 @@ const MENU_ROUTE_MAP: Record<string, string> = {
   '/system/log': '/system/log',
 }
 
-const AVAILABLE_MENU_PATHS = new Set(Object.values(MENU_ROUTE_MAP))
-
 function toAbsolutePath(parentPath: string | undefined, path: string | undefined) {
   if (!path) {
     return ''
@@ -46,8 +44,20 @@ function normalizeMenuTree(resources: ResourceTreeNode[], parentPath?: string): 
       }
     })
     .filter((item) => item.checked === true || (item.children?.length ?? 0) > 0)
-    .filter((item) => AVAILABLE_MENU_PATHS.has(item.path || '') || (item.children?.length ?? 0) > 0)
+    .filter((item) => Boolean(item.path) || (item.children?.length ?? 0) > 0)
     .sort((left, right) => (left.sort || 0) - (right.sort || 0))
+}
+
+function normalizeResourceTree(resources: ResourceTreeNode[], parentPath?: string): ResourceTreeNode[] {
+  return resources.map((item) => {
+    const absolutePath = toAbsolutePath(parentPath, item.path)
+    const normalizedPath = item.type === 1 ? absolutePath : (MENU_ROUTE_MAP[absolutePath] || absolutePath)
+    return {
+      ...item,
+      path: normalizedPath,
+      children: item.children ? normalizeResourceTree(item.children, absolutePath) : [],
+    }
+  })
 }
 
 function collectAccessiblePaths(resources: ResourceTreeNode[]): string[] {
@@ -84,6 +94,51 @@ function findFirstLeafPath(resources: ResourceTreeNode[]): string {
   return ''
 }
 
+function collectPermissionSet(resources: ResourceTreeNode[], bucket = new Set<string>()) {
+  resources.forEach((node) => {
+    if (node.checked === true && node.permission) {
+      bucket.add(node.permission)
+    }
+    if (node.children?.length) {
+      collectPermissionSet(node.children, bucket)
+    }
+  })
+  return bucket
+}
+
+function findNodeByPath(resources: ResourceTreeNode[], path: string): ResourceTreeNode | null {
+  for (const node of resources) {
+    if (node.path === path) {
+      return node
+    }
+    if (node.children?.length) {
+      const found = findNodeByPath(node.children, path)
+      if (found) {
+        return found
+      }
+    }
+  }
+  return null
+}
+
+function collectDescendantActionNodes(node: ResourceTreeNode): ResourceTreeNode[] {
+  const actions: ResourceTreeNode[] = []
+
+  const walk = (children?: ResourceTreeNode[]) => {
+    children?.forEach((child) => {
+      if (child.type >= 3) {
+        actions.push(child)
+      }
+      if (child.children?.length) {
+        walk(child.children)
+      }
+    })
+  }
+
+  walk(node.children)
+  return actions
+}
+
 let bootstrapPromise: Promise<void> | null = null
 
 export const useAuthStore = defineStore('auth', () => {
@@ -93,9 +148,17 @@ export const useAuthStore = defineStore('auth', () => {
   const resources = ref<ResourceTreeNode[]>([])
   const initialized = ref(false)
 
+  const normalizedResources = computed(() => normalizeResourceTree(resources.value))
   const displayName = computed(() => mine.value?.user?.nickname || mine.value?.user?.username || '未登录')
   const sidebarMenus = computed(() => normalizeMenuTree(resources.value))
   const accessiblePaths = computed(() => new Set(collectAccessiblePaths(sidebarMenus.value)))
+  const permissionSet = computed(() => {
+    const set = collectPermissionSet(normalizedResources.value)
+    permissions.value
+      .filter((permission) => permission && permission !== '*:*:*')
+      .forEach((permission) => set.add(permission))
+    return set
+  })
   const firstAccessiblePath = computed(() => findFirstLeafPath(sidebarMenus.value) || '/404')
 
   async function refreshCaptcha() {
@@ -160,6 +223,52 @@ export const useAuthStore = defineStore('auth', () => {
     return accessiblePaths.value.has(path)
   }
 
+  function hasPermission(permission?: string) {
+    if (!permission) {
+      return true
+    }
+    return permissionSet.value.has(permission)
+  }
+
+  function canAction(
+    pagePath: string,
+    options: {
+      names?: string[]
+      permissions?: string[]
+    },
+  ) {
+    if (!canAccessPath(pagePath)) {
+      return false
+    }
+
+    const pageNode = findNodeByPath(normalizedResources.value, pagePath)
+    if (!pageNode) {
+      return false
+    }
+
+    const actionNodes = collectDescendantActionNodes(pageNode)
+    const matchedByPermission = options.permissions?.some((permission) => hasPermission(permission))
+    if (matchedByPermission) {
+      return true
+    }
+
+    const matchedByActionNode = actionNodes.some((node) => {
+      if (node.checked !== true) {
+        return false
+      }
+      const matchesName = options.names?.includes(node.name)
+      const matchesPermission = node.permission ? options.permissions?.includes(node.permission) : false
+      return Boolean(matchesName || matchesPermission)
+    })
+
+    if (matchedByActionNode) {
+      return true
+    }
+
+    // 如果该页面下尚未配置按钮级资源，则默认继承页面权限，避免把所有按钮都误隐藏。
+    return actionNodes.length === 0
+  }
+
   return {
     token,
     mine,
@@ -169,10 +278,13 @@ export const useAuthStore = defineStore('auth', () => {
     displayName,
     sidebarMenus,
     firstAccessiblePath,
+    permissionSet,
     refreshCaptcha,
     login,
     bootstrap,
     canAccessPath,
+    hasPermission,
+    canAction,
     clearAuth,
     logout,
   }

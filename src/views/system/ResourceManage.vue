@@ -1,8 +1,12 @@
 <template>
   <div class="resource-manage-container">
     <div class="page-header">
-      <h2>资源管理</h2>
-      <el-button type="primary" @click="handleAddResource">
+      <h2>菜单管理</h2>
+      <el-button
+        v-if="authStore.canAction('/system/resource', { names: ['新增资源', '新增菜单', '新增'], permissions: ['admin:sysRes:create', 'admin:sysRes:crud:create'] })"
+        type="primary"
+        @click="handleAddResource"
+      >
         <el-icon><Plus /></el-icon>新增资源
       </el-button>
     </div>
@@ -34,13 +38,16 @@
     </div>
 
     <div class="table-container">
-      <el-table
-        v-loading="tableLoading"
-        :data="resourceList"
-        stripe
-        style="width: 100%"
-        @selection-change="handleSelectionChange"
-      >
+        <el-table
+          v-loading="tableLoading"
+          :data="resourceList"
+          stripe
+          row-key="id"
+          style="width: 100%"
+          default-expand-all
+          :tree-props="{ children: 'children' }"
+          @selection-change="handleSelectionChange"
+        >
         <el-table-column type="selection" width="55"></el-table-column>
         <el-table-column prop="name" label="资源名称" min-width="120"></el-table-column>
         <el-table-column prop="type" label="资源类型" min-width="100">
@@ -65,27 +72,25 @@
         </el-table-column>
         <el-table-column label="操作" min-width="120" fixed="right">
           <template #default="scope">
-            <el-button type="primary" size="small" @click="handleEditResource(scope.row)">
+            <el-button
+              v-if="authStore.canAction('/system/resource', { names: ['编辑资源', '编辑菜单', '编辑'], permissions: ['admin:sysRes:update', 'admin:sysRes:crud:update'] })"
+              type="primary"
+              size="small"
+              @click="handleEditResource(scope.row)"
+            >
               编辑
             </el-button>
-            <el-button type="danger" size="small" @click="handleDeleteResource(scope.row)">
+            <el-button
+              v-if="authStore.canAction('/system/resource', { names: ['删除资源', '删除菜单', '删除'], permissions: ['admin:sysRes:delete', 'admin:sysRes:crud:delete'] })"
+              type="danger"
+              size="small"
+              @click="handleDeleteResource(scope.row)"
+            >
               删除
             </el-button>
           </template>
         </el-table-column>
       </el-table>
-
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="pagination.currentPage"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="pagination.total"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        ></el-pagination>
-      </div>
     </div>
 
     <!-- 新增/编辑资源弹窗 -->
@@ -174,16 +179,18 @@ import { ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 import {
   createResource,
   deleteResources,
   getResourceDetail,
   getResourceTree,
-  queryResources,
   updateResource,
 } from '@/api/upms'
 import type { ResourceTreeNode } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
+
+const authStore = useAuthStore()
 
 // 表格加载状态
 const tableLoading = ref(false)
@@ -193,13 +200,6 @@ const searchForm = reactive({
   name: '',
   type: '' as '' | number,
   status: ''
-})
-
-// 分页配置
-const pagination = reactive({
-  currentPage: 1,
-  pageSize: 10,
-  total: 0
 })
 
 // 选中的资源列表
@@ -270,18 +270,26 @@ onMounted(() => {
 const getResourceList = async () => {
   tableLoading.value = true
   try {
-    const response = await queryResources({
-      current: pagination.currentPage,
-      size: pagination.pageSize,
+    const response = await getResourceTree({
       conditions_: buildConditions([
         { field: 'name', operator: 'like', value: searchForm.name },
       ]),
-      type: searchForm.type || undefined,
       status: searchForm.status || undefined,
     })
 
-    resourceList.value = response.data.records
-    pagination.total = response.data.total
+    const filteredTree = (nodes: ResourceTreeNode[]): ResourceTreeNode[] => {
+      return nodes
+        .map((node) => ({
+          ...node,
+          children: node.children ? filteredTree(node.children) : [],
+        }))
+        .filter((node) => {
+          const matchesType = !searchForm.type || node.type === searchForm.type
+          return matchesType || (node.children?.length ?? 0) > 0
+        })
+    }
+
+    resourceList.value = filteredTree(response.data)
   } finally {
     tableLoading.value = false
   }
@@ -289,7 +297,6 @@ const getResourceList = async () => {
 
 // 搜索资源
 const handleSearch = async () => {
-  pagination.currentPage = 1
   await getResourceList()
 }
 
@@ -300,19 +307,6 @@ const handleReset = async () => {
     type: '',
     status: ''
   })
-  pagination.currentPage = 1
-  await getResourceList()
-}
-
-// 分页大小变化
-const handleSizeChange = async (size: number) => {
-  pagination.pageSize = size
-  await getResourceList()
-}
-
-// 当前页码变化
-const handleCurrentChange = async (page: number) => {
-  pagination.currentPage = page
   await getResourceList()
 }
 
@@ -436,7 +430,7 @@ const resetResourceForm = () => {
     remark: '',
   })
   if (resourceFormRef.value) {
-    resourceFormRef.value.resetFields()
+    resourceFormRef.value.clearValidate()
   }
 }
 

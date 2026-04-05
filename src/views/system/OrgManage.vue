@@ -3,7 +3,11 @@
     <div class="page-header">
       <h2>组织管理</h2>
       <div class="header-actions">
-        <el-button type="primary" @click="handleAddDept">
+        <el-button
+          v-if="authStore.canAction('/system/org', { names: ['新增组织', '新增'], permissions: ['admin:sysOrg:create', 'admin:sysOrg:crud:create'] })"
+          type="primary"
+          @click="handleAddDept"
+        >
           <el-icon><Plus /></el-icon>新增组织
         </el-button>
         <el-button type="success" @click="handleImport">
@@ -57,10 +61,20 @@
           <div class="section-header">
             <h3>组织详情</h3>
             <div class="section-actions">
-              <el-button type="primary" size="small" @click="handleEditDept(currentDept)">
+              <el-button
+                v-if="authStore.canAction('/system/org', { names: ['编辑组织', '编辑'], permissions: ['admin:sysOrg:update', 'admin:sysOrg:crud:update'] })"
+                type="primary"
+                size="small"
+                @click="handleEditDept(currentDept)"
+              >
                 编辑
               </el-button>
-              <el-button type="danger" size="small" @click="handleDeleteDept(currentDept)">
+              <el-button
+                v-if="authStore.canAction('/system/org', { names: ['删除组织', '删除'], permissions: ['admin:sysOrg:delete', 'admin:sysOrg:crud:delete'] })"
+                type="danger"
+                size="small"
+                @click="handleDeleteDept(currentDept)"
+              >
                 删除
               </el-button>
             </div>
@@ -184,8 +198,11 @@ import { ref, reactive, onMounted, markRaw } from 'vue'
 import { Plus, Upload, Download, OfficeBuilding as RawOfficeBuilding } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 import { createOrg, deleteOrgs, getOrgDetail, getOrgTree, queryUsers, updateOrg } from '@/api/upms'
 import type { SysOrgTreeNode } from '@/types/upms'
+
+const authStore = useAuthStore()
 
 // 使用 markRaw 标记图标组件为非响应式
 const OfficeBuilding = markRaw(RawOfficeBuilding)

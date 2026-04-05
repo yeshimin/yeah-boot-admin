@@ -2,7 +2,11 @@
   <div class="role-manage-container">
     <div class="page-header">
       <h2>角色管理</h2>
-      <el-button type="primary" @click="handleAddRole">
+      <el-button
+        v-if="authStore.canAction('/system/role', { names: ['新增角色', '新增'], permissions: ['admin:sysRole:create', 'admin:sysRole:crud:create'] })"
+        type="primary"
+        @click="handleAddRole"
+      >
         <el-icon><Plus /></el-icon>新增角色
       </el-button>
     </div>
@@ -50,13 +54,28 @@
         <el-table-column prop="createTime" label="创建时间" min-width="160"></el-table-column>
         <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="scope">
-            <el-button type="primary" size="small" @click="handleEditRole(scope.row)">
+            <el-button
+              v-if="authStore.canAction('/system/role', { names: ['编辑角色', '编辑'], permissions: ['admin:sysRole:update', 'admin:sysRole:crud:update'] })"
+              type="primary"
+              size="small"
+              @click="handleEditRole(scope.row)"
+            >
               编辑
             </el-button>
-            <el-button type="success" size="small" @click="handleAssignPermission(scope.row)">
+            <el-button
+              v-if="authStore.canAction('/system/role', { names: ['分配权限'], permissions: ['admin:sysRole:setResources'] })"
+              type="success"
+              size="small"
+              @click="handleAssignPermission(scope.row)"
+            >
               分配权限
             </el-button>
-            <el-button type="danger" size="small" @click="handleDeleteRole(scope.row)">
+            <el-button
+              v-if="authStore.canAction('/system/role', { names: ['删除角色', '删除'], permissions: ['admin:sysRole:delete', 'admin:sysRole:crud:delete'] })"
+              type="danger"
+              size="small"
+              @click="handleDeleteRole(scope.row)"
+            >
               删除
             </el-button>
           </template>
@@ -148,6 +167,7 @@ import { nextTick, ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 import {
   createRole,
   deleteRoles,
@@ -158,6 +178,8 @@ import {
   updateRole,
 } from '@/api/upms'
 import { buildConditions } from '@/utils/query'
+
+const authStore = useAuthStore()
 
 // 表格加载状态
 const tableLoading = ref(false)

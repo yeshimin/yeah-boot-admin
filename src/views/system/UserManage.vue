@@ -2,7 +2,11 @@
   <div class="user-manage-container">
     <div class="page-header">
       <h2>用户管理</h2>
-      <el-button type="primary" @click="handleAddUser">
+      <el-button
+        v-if="authStore.canAction('/system/user', { names: ['新增用户', '新增'], permissions: ['admin:sysUser:create', 'admin:sysUser:crud:create'] })"
+        type="primary"
+        @click="handleAddUser"
+      >
         <el-icon><Plus /></el-icon>新增用户
       </el-button>
     </div>
@@ -96,13 +100,28 @@
                 <el-button type="info" size="small" @click="handleViewUser(scope.row)">
                   详情
                 </el-button>
-                <el-button type="primary" size="small" @click="handleEditUser(scope.row)">
+                <el-button
+                  v-if="authStore.canAction('/system/user', { names: ['编辑用户', '编辑'], permissions: ['admin:sysUser:update', 'admin:sysUser:crud:update'] })"
+                  type="primary"
+                  size="small"
+                  @click="handleEditUser(scope.row)"
+                >
                   编辑
                 </el-button>
-                <el-button type="success" size="small" @click="handleResetPassword(scope.row)">
+                <el-button
+                  v-if="authStore.canAction('/system/user', { names: ['重置密码'], permissions: ['admin:sysUser:resetPwd'] })"
+                  type="success"
+                  size="small"
+                  @click="handleResetPassword(scope.row)"
+                >
                   重置密码
                 </el-button>
-                <el-button type="danger" size="small" @click="handleDeleteUser(scope.row)">
+                <el-button
+                  v-if="authStore.canAction('/system/user', { names: ['删除用户', '删除'], permissions: ['admin:sysUser:delete', 'admin:sysUser:crud:delete'] })"
+                  type="danger"
+                  size="small"
+                  @click="handleDeleteUser(scope.row)"
+                >
                   删除
                 </el-button>
               </template>
@@ -250,6 +269,7 @@ import { Plus } from '@element-plus/icons-vue'
 import type { ElTree } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 import {
   createUser,
   deleteUsers,
@@ -262,6 +282,8 @@ import {
 } from '@/api/upms'
 import type { SysOrgTreeNode, SysUserVo } from '@/types/upms'
 import { sha256Hex } from '@/utils/crypto'
+
+const authStore = useAuthStore()
 
 // 表格加载状态
 const tableLoading = ref(false)

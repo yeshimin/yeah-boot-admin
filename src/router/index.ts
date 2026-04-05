@@ -1,8 +1,10 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import type { ResourceTreeNode } from '@/types/upms'
 
 // 引入 Layout 组件
 const Layout = () => import('../components/layout/index.vue')
+const RoutePlaceholderView = () => import('../views/system/RoutePlaceholderView.vue')
 
 // 静态路由
 const constantRoutes = [
@@ -34,6 +36,18 @@ const OrgManage = () => import('../views/system/OrgManage.vue')
 const PositionManage = () => import('../views/system/PositionManage.vue')
 const DictManage = () => import('../views/system/DictManage.vue')
 const LogManage = () => import('../views/system/LogManage.vue')
+const backendViewModules = import.meta.glob('../views/**/*.vue')
+const registeredDynamicRouteNames = new Set<string>()
+
+const BACKEND_COMPONENT_MAP: Record<string, () => Promise<unknown>> = {
+  'system/user/index': UserManage,
+  'system/role/index': RoleManage,
+  'system/menu/index': ResourceManage,
+  'system/dept/index': OrgManage,
+  'system/post/index': PositionManage,
+  'system/dict/index': DictManage,
+  'system/log/index': LogManage,
+}
 
 // 动态路由
 const asyncRoutes = [
@@ -97,6 +111,78 @@ const router = createRouter({
   routes: [...constantRoutes, ...asyncRoutes],
 })
 
+function resolveBackendView(component?: string) {
+  if (!component || component === 'Layout') {
+    return RoutePlaceholderView
+  }
+
+  if (BACKEND_COMPONENT_MAP[component]) {
+    return BACKEND_COMPONENT_MAP[component]
+  }
+
+  const directPath = `../views/${component}.vue`
+  const indexPath = `../views/${component}/index.vue`
+
+  if (backendViewModules[directPath]) {
+    return backendViewModules[directPath]
+  }
+
+  if (backendViewModules[indexPath]) {
+    return backendViewModules[indexPath]
+  }
+
+  return RoutePlaceholderView
+}
+
+function buildDynamicRouteNode(node: ResourceTreeNode): RouteRecordRaw {
+  const routeName = `dynamic-${node.id}`
+  const hasChildren = Boolean(node.children?.length)
+
+  if (hasChildren) {
+    const children = (node.children || []).map((child) => buildDynamicRouteNode(child)).map((child) => ({
+      ...child,
+      path: String(child.path).replace(`${node.path}/`, ''),
+    }))
+
+    const firstChild = node.children?.find((child) => child.path)?.path
+
+    return {
+      path: node.path || `/${node.id}`,
+      name: routeName,
+      component: Layout,
+      redirect: firstChild,
+      meta: {
+        title: node.name,
+        icon: node.icon,
+        backendComponent: node.component,
+      },
+      children,
+    }
+  }
+
+  return {
+    path: node.path || `/${node.id}`,
+    name: routeName,
+    component: resolveBackendView(node.component),
+    meta: {
+      title: node.name,
+      icon: node.icon,
+      backendComponent: node.component,
+    },
+  }
+}
+
+function ensureDynamicRoutes(resources: ResourceTreeNode[]) {
+  const dynamicMenus = resources.filter((item) => !item.path?.startsWith('/system'))
+  dynamicMenus.forEach((node) => {
+    const route = buildDynamicRouteNode(node)
+    if (route.name && !registeredDynamicRouteNames.has(String(route.name))) {
+      router.addRoute(route)
+      registeredDynamicRouteNames.add(String(route.name))
+    }
+  })
+}
+
 // 路由守卫
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()
@@ -124,6 +210,7 @@ router.beforeEach(async (to) => {
 
   try {
     await authStore.bootstrap()
+    ensureDynamicRoutes(authStore.sidebarMenus)
   } catch {
     await authStore.clearAuth()
     return {
@@ -134,7 +221,16 @@ router.beforeEach(async (to) => {
     }
   }
 
-  if (to.path.startsWith('/system/') && !authStore.canAccessPath(to.path)) {
+  const hasConcreteRoute = router.getRoutes().some((route) => route.path === to.path)
+  const matchedConcreteRoute = to.matched.some((record) => record.path === to.path)
+  if (hasConcreteRoute && !matchedConcreteRoute) {
+    return {
+      path: to.fullPath,
+      replace: true,
+    }
+  }
+
+  if (!['/', '/login', '/404', '/500'].includes(to.path) && !authStore.canAccessPath(to.path)) {
     return authStore.firstAccessiblePath
   }
 

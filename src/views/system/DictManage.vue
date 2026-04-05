@@ -3,10 +3,18 @@
     <div class="page-header">
       <h2>字典管理</h2>
       <div class="header-actions">
-        <el-button type="primary" @click="handleAddRoot">
+        <el-button
+          v-if="authStore.canAction('/system/dict', { names: ['新增根节点', '新增子节点', '新增'], permissions: ['admin:sysDict:create', 'admin:sysDict:crud:create'] })"
+          type="primary"
+          @click="handleAddRoot"
+        >
           <el-icon><Plus /></el-icon>新增根节点
         </el-button>
-        <el-button :disabled="!currentNode" @click="handleAddChild">
+        <el-button
+          v-if="authStore.canAction('/system/dict', { names: ['新增根节点', '新增子节点', '新增'], permissions: ['admin:sysDict:create', 'admin:sysDict:crud:create'] })"
+          :disabled="!currentNode"
+          @click="handleAddChild"
+        >
           <el-icon><Plus /></el-icon>新增子节点
         </el-button>
       </div>
@@ -38,8 +46,18 @@
         <div class="detail-header">
           <h3>节点列表</h3>
           <div class="detail-actions" v-if="currentNode">
-            <el-button size="small" type="primary" @click="handleEdit(currentNode)">编辑当前节点</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(currentNode)">删除当前节点</el-button>
+            <el-button
+              v-if="authStore.canAction('/system/dict', { names: ['编辑当前节点', '编辑'], permissions: ['admin:sysDict:update', 'admin:sysDict:crud:update'] })"
+              size="small"
+              type="primary"
+              @click="handleEdit(currentNode)"
+            >编辑当前节点</el-button>
+            <el-button
+              v-if="authStore.canAction('/system/dict', { names: ['删除当前节点', '删除'], permissions: ['admin:sysDict:delete', 'admin:sysDict:crud:delete'] })"
+              size="small"
+              type="danger"
+              @click="handleDelete(currentNode)"
+            >删除当前节点</el-button>
           </div>
         </div>
 
@@ -58,9 +76,24 @@
           <el-table-column prop="createTime" label="创建时间" min-width="180"></el-table-column>
           <el-table-column label="操作" width="220" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="handleAddChild(row)">新增子节点</el-button>
-              <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-              <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button
+                v-if="authStore.canAction('/system/dict', { names: ['新增根节点', '新增子节点', '新增'], permissions: ['admin:sysDict:create', 'admin:sysDict:crud:create'] })"
+                link
+                type="primary"
+                @click="handleAddChild(row)"
+              >新增子节点</el-button>
+              <el-button
+                v-if="authStore.canAction('/system/dict', { names: ['编辑当前节点', '编辑'], permissions: ['admin:sysDict:update', 'admin:sysDict:crud:update'] })"
+                link
+                type="primary"
+                @click="handleEdit(row)"
+              >编辑</el-button>
+              <el-button
+                v-if="authStore.canAction('/system/dict', { names: ['删除当前节点', '删除'], permissions: ['admin:sysDict:delete', 'admin:sysDict:crud:delete'] })"
+                link
+                type="danger"
+                @click="handleDelete(row)"
+              >删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -118,8 +151,11 @@ import { computed, reactive, ref, watch } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 import { createDict, deleteDicts, getDictDetail, getDictTree, updateDict } from '@/api/upms'
 import type { SysDictTreeNode } from '@/types/upms'
+
+const authStore = useAuthStore()
 
 const treeRef = ref()
 const formRef = ref<FormInstance>()
