@@ -62,26 +62,50 @@ const route = useRoute()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 
+function hasConcreteRoute(path?: string) {
+  if (!path) {
+    return false
+  }
+  return router.getRoutes().some((item) => item.path === path)
+}
+
 // 默认头像
 const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
 
+function findMenuTrail(
+  nodes: Array<{ name: string; path?: string; children?: Array<any> }>,
+  targetPath: string,
+  trail: Array<{ title: string; path?: string }> = [],
+): Array<{ title: string; path?: string }> | null {
+  for (const node of nodes) {
+    const normalizedPath = hasConcreteRoute(node.path) ? node.path : undefined
+    const nextTrail = [...trail, { title: node.name, path: normalizedPath }]
+    if (node.path === targetPath) {
+      return nextTrail
+    }
+    if (node.children?.length) {
+      const found = findMenuTrail(node.children, targetPath, nextTrail)
+      if (found) {
+        return found
+      }
+    }
+  }
+  return null
+}
+
 // 动态计算面包屑
 const breadcrumbList = computed(() => {
-  const matched = route.matched || []
-  const breadcrumbs = []
+  const menuTrail = findMenuTrail(authStore.sidebarMenus, route.path)
+  if (menuTrail?.length) {
+    return menuTrail
+  }
 
-  // 添加首页
-  breadcrumbs.push({
-    title: '首页',
-    path: '/'
-  })
-
-  // 遍历匹配的路由
-  for (const routeItem of matched) {
-    if (routeItem?.meta?.title && routeItem?.path) {
+  const breadcrumbs: Array<{ title: string; path?: string }> = []
+  for (const routeItem of route.matched || []) {
+    if (routeItem?.meta?.title && routeItem?.path && routeItem.path !== '/') {
       breadcrumbs.push({
         title: routeItem.meta.title as string,
-        path: routeItem.path
+        path: routeItem.path,
       })
     }
   }
