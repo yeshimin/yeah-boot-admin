@@ -177,6 +177,19 @@ export const useAuthStore = defineStore('auth', () => {
     initialized.value = false
   }
 
+  function assignAuthContext(mineData: MineVo, resourceTree: ResourceTreeNode[]) {
+    mine.value = mineData
+    permissions.value = mineData.permissions || []
+    resources.value = resourceTree || []
+    initialized.value = true
+  }
+
+  function fetchAuthContext() {
+    return Promise.all([getMine(), getMineResources()]).then(([mineResponse, resourceResponse]) => {
+      assignAuthContext(mineResponse.data, resourceResponse.data || [])
+    })
+  }
+
   async function bootstrap() {
     if (!token.value) {
       return
@@ -187,19 +200,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     if (!bootstrapPromise) {
-      bootstrapPromise = Promise.all([getMine(), getMineResources()])
-        .then(([mineResponse, resourceResponse]) => {
-          mine.value = mineResponse.data
-          permissions.value = mineResponse.data.permissions || []
-          resources.value = resourceResponse.data || []
-          initialized.value = true
-        })
-        .finally(() => {
+      const currentPromise = fetchAuthContext().finally(() => {
+        if (bootstrapPromise === currentPromise) {
           bootstrapPromise = null
-        })
+        }
+      })
+      bootstrapPromise = currentPromise
     }
 
     await bootstrapPromise
+  }
+
+  async function refreshProfile() {
+    if (!token.value) {
+      return
+    }
+
+    await fetchAuthContext()
   }
 
   async function clearAuth() {
@@ -285,6 +302,7 @@ export const useAuthStore = defineStore('auth', () => {
     refreshCaptcha,
     login,
     bootstrap,
+    refreshProfile,
     canAccessPath,
     hasPermission,
     canAction,

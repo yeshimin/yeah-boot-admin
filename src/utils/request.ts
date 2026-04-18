@@ -46,6 +46,11 @@ service.interceptors.request.use((config) => {
   const skipAuth = (nextConfig as RequestConfig).skipAuth
   const token = getToken()
 
+  // Let the browser generate the multipart boundary for FormData requests.
+  if (nextConfig.data instanceof FormData && nextConfig.headers) {
+    delete nextConfig.headers['Content-Type']
+  }
+
   if (!skipAuth && token) {
     nextConfig.headers.Authorization = `Bearer ${token}`
   }

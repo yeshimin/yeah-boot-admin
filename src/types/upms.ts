@@ -76,6 +76,16 @@ export interface MineVo {
   permissions: string[]
 }
 
+export interface UpdateMineRequest {
+  nickname?: string
+  mobile?: string
+  email?: string
+  gender?: string
+  avatar?: string
+  oldPassword?: string
+  newPassword?: string
+}
+
 export interface ResourceTreeNode {
   id: number
   type: number

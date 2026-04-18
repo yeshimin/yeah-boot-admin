@@ -54,6 +54,7 @@ import { computed } from 'vue'
 import { ArrowDown, Expand, Fold, User, Setting, SwitchButton } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { getStoragePreviewUrl } from '@/api/storage'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 
@@ -123,7 +124,10 @@ const avatarUrl = computed(() => {
   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
     return avatar
   }
-  return `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8080'}${avatar}`
+  if (avatar.startsWith('/')) {
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8080'}${avatar}`
+  }
+  return getStoragePreviewUrl(avatar)
 })
 
 // 切换侧边栏折叠状态
@@ -135,7 +139,9 @@ const toggleSidebar = () => {
 const handleCommand = async (command: string) => {
   switch (command) {
     case 'profile':
-      ElMessage.info('个人中心功能待实现')
+      if (route.path !== '/profile') {
+        await router.push('/profile')
+      }
       break
     case 'settings':
       ElMessage.info('设置功能待实现')

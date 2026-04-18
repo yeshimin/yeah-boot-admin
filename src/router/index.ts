@@ -36,6 +36,7 @@ const OrgManage = () => import('../views/system/OrgManage.vue')
 const PositionManage = () => import('../views/system/PositionManage.vue')
 const DictManage = () => import('../views/system/DictManage.vue')
 const LogManage = () => import('../views/system/LogManage.vue')
+const ProfileView = () => import('../views/profile/ProfileView.vue')
 const backendViewModules = import.meta.glob('../views/**/*.vue')
 const registeredDynamicRouteNames = new Set<string>()
 
@@ -58,6 +59,15 @@ const asyncRoutes = [
     meta: { title: '首页' },
     children: [
       // 系统管理
+      {
+        path: '/profile',
+        name: 'profile',
+        component: ProfileView,
+        meta: {
+          title: '个人中心',
+          ignoreAccessControl: true,
+        },
+      },
       {
         path: '/system/user',
         name: 'system-user',
@@ -230,7 +240,12 @@ router.beforeEach(async (to) => {
     }
   }
 
-  if (!['/', '/login', '/404', '/500'].includes(to.path) && !authStore.canAccessPath(to.path)) {
+  const ignoreAccessControl = to.matched.some((record) => record.meta?.ignoreAccessControl === true)
+  if (
+    !ignoreAccessControl &&
+    !['/', '/login', '/404', '/500'].includes(to.path) &&
+    !authStore.canAccessPath(to.path)
+  ) {
     return authStore.firstAccessiblePath
   }
 

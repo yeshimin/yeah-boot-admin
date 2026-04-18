@@ -11,6 +11,7 @@ import type {
   SysResEntity,
   SysRoleEntity,
   SysRoleVo,
+  UpdateMineRequest,
   SysUserVo,
 } from '@/types/upms'
 import { request } from '@/utils/request'
@@ -26,6 +27,14 @@ export function getMineResources() {
   return request<ResourceTreeNode[]>({
     url: '/admin/sysUser/mineResources',
     method: 'get',
+  })
+}
+
+export function updateMine(data: UpdateMineRequest) {
+  return request<void>({
+    url: '/admin/sysUser/updateMine',
+    method: 'post',
+    data,
   })
 }
 
