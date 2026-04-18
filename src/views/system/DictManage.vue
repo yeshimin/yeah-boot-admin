@@ -30,20 +30,61 @@
             size="small"
           ></el-input>
         </div>
-        <el-tree
-          ref="treeRef"
-          :data="dictTree"
-          node-key="id"
-          :props="treeProps"
-          default-expand-all
-          :filter-node-method="filterTreeNode"
-          @node-click="handleNodeClick"
-        />
+        <div class="tree-content">
+          <el-tree
+            ref="treeRef"
+            :data="dictTree"
+            node-key="id"
+            :props="treeProps"
+            default-expand-all
+            :expand-on-click-node="false"
+            :filter-node-method="filterTreeNode"
+            @node-click="handleNodeClick"
+          >
+            <template #default="{ data }">
+              <div class="tree-node-row">
+                <span class="tree-node-label">{{ data.name }}</span>
+                <div class="tree-node-actions">
+                  <el-button
+                    v-if="authStore.canAction('/system/dict', { names: ['新增根节点', '新增子节点', '新增'], permissions: ['admin:sysDict:create', 'admin:sysDict:crud:create'] })"
+                    link
+                    type="primary"
+                    size="small"
+                    class="tree-action-btn"
+                    @click.stop="handleAddChild(data)"
+                  >
+                    <el-icon><Plus /></el-icon>
+                  </el-button>
+                  <el-button
+                    v-if="authStore.canAction('/system/dict', { names: ['编辑当前节点', '编辑'], permissions: ['admin:sysDict:update', 'admin:sysDict:crud:update'] })"
+                    link
+                    type="primary"
+                    size="small"
+                    class="tree-action-btn"
+                    @click.stop="handleEdit(data)"
+                  >
+                    <el-icon><Edit /></el-icon>
+                  </el-button>
+                  <el-button
+                    v-if="authStore.canAction('/system/dict', { names: ['删除当前节点', '删除'], permissions: ['admin:sysDict:delete', 'admin:sysDict:crud:delete'] })"
+                    link
+                    type="danger"
+                    size="small"
+                    class="tree-action-btn"
+                    @click.stop="handleDelete(data)"
+                  >
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+              </div>
+            </template>
+          </el-tree>
+        </div>
       </div>
 
       <div class="dict-detail-panel">
         <div class="detail-header">
-          <h3>节点列表</h3>
+          <h3>当前节点</h3>
           <div class="detail-actions" v-if="currentNode">
             <el-button
               v-if="authStore.canAction('/system/dict', { names: ['编辑当前节点', '编辑'], permissions: ['admin:sysDict:update', 'admin:sysDict:crud:update'] })"
@@ -60,12 +101,30 @@
           </div>
         </div>
 
+        <el-descriptions v-if="currentNode" :column="2" border class="node-detail-card">
+          <el-descriptions-item label="名称">{{ currentNode.name || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="编码">{{ currentNode.code || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="值">{{ currentNode.value || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="排序">{{ currentNode.sort ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间" :span="2">
+            {{ currentNode.createTime || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="备注" :span="2">
+            {{ currentNode.remark || '-' }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <div class="detail-subheader">
+          <h3>下级子节点</h3>
+        </div>
+
         <el-table
           v-loading="tableLoading"
           :data="tableRows"
           row-key="id"
           border
           style="width: 100%"
+          empty-text="当前节点没有下级子节点"
         >
           <el-table-column prop="name" label="名称" min-width="160"></el-table-column>
           <el-table-column prop="code" label="编码" min-width="140"></el-table-column>
@@ -147,7 +206,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { Plus } from '@element-plus/icons-vue'
+import { Delete, Edit, Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
@@ -391,6 +450,26 @@ void loadDictTree()
   padding: 16px;
 }
 
+.dict-tree-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tree-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.tree-content :deep(.el-tree-node__content) {
+  width: 100%;
+}
+
+.tree-content :deep(.el-tree) {
+  min-width: max-content;
+}
+
 .tree-header,
 .detail-header {
   display: flex;
@@ -400,14 +479,66 @@ void loadDictTree()
   margin-bottom: 16px;
 }
 
+.tree-node-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tree-node-label {
+  flex: 1 0 auto;
+  white-space: nowrap;
+}
+
+.tree-node-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
 .tree-header h3,
 .detail-header h3 {
   margin: 0;
   font-size: 16px;
+  white-space: nowrap;
+}
+
+.tree-node-row:hover .tree-node-actions,
+.tree-node-row:focus-within .tree-node-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tree-action-btn {
+  padding: 0;
+  min-height: auto;
 }
 
 .detail-actions {
   display: flex;
   gap: 8px;
+}
+
+.node-detail-card {
+  margin-bottom: 16px;
+}
+
+.detail-subheader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.detail-subheader h3 {
+  margin: 0;
+  font-size: 16px;
+  white-space: nowrap;
 }
 </style>

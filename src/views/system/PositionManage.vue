@@ -42,6 +42,12 @@
         <el-table-column prop="name" label="岗位名称" min-width="120"></el-table-column>
         <el-table-column prop="code" label="岗位编码" min-width="120"></el-table-column>
         <el-table-column prop="sort" label="排序" min-width="80"></el-table-column>
+        <el-table-column
+          prop="remark"
+          label="备注"
+          min-width="180"
+          show-overflow-tooltip
+        ></el-table-column>
         <el-table-column prop="status" label="状态" min-width="80">
           <template #default="scope">
             <el-switch

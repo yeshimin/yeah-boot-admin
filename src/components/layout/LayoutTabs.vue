@@ -75,6 +75,7 @@ function closeTag(path: string) {
 <style scoped>
 .tabs-container {
   height: 42px;
+  overflow: hidden;
   border-bottom: 1px solid #ebeef5;
   background-color: #fff;
 }
@@ -85,6 +86,15 @@ function closeTag(path: string) {
   gap: 8px;
   min-width: max-content;
   padding: 6px 16px;
+}
+
+.tabs-container :deep(.el-scrollbar__wrap) {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.tabs-container :deep(.el-scrollbar__bar.is-vertical) {
+  display: none;
 }
 
 .tab-item {

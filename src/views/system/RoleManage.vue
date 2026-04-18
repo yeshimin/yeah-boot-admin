@@ -184,6 +184,7 @@ import {
   setRoleResources,
   updateRole,
 } from '@/api/upms'
+import type { ResourceTreeNode } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
 
 const authStore = useAuthStore()
@@ -250,7 +251,7 @@ const checkedPermissions = ref<number[]>([])
 const currentRole = ref<any>(null)
 
 // 权限树数据
-const permissionTree = ref<any[]>([])
+const permissionTree = ref<ResourceTreeNode[]>([])
 
 // 权限树配置
 const permissionTreeProps = {
@@ -373,11 +374,29 @@ const handleStatusChange = async (row: any) => {
 }
 
 // 分配权限
-const collectCheckedIds = (tree: any[]): number[] => {
-  return tree.flatMap((item) => {
-    const current = item.checked ? [item.id] : []
-    const children = item.children ? collectCheckedIds(item.children) : []
-    return [...current, ...children]
+function isFullyChecked(node: ResourceTreeNode): boolean {
+  if (!node.checked) {
+    return false
+  }
+
+  if (!node.children?.length) {
+    return true
+  }
+
+  return node.children.every(isFullyChecked)
+}
+
+function collectDisplayCheckedIds(nodes: ResourceTreeNode[]): number[] {
+  return nodes.flatMap((node) => {
+    if (!node.children?.length) {
+      return node.checked ? [node.id] : []
+    }
+
+    if (isFullyChecked(node)) {
+      return [node.id]
+    }
+
+    return collectDisplayCheckedIds(node.children)
   })
 }
 
@@ -385,10 +404,10 @@ const handleAssignPermission = async (row: any) => {
   currentRole.value = row
   const response = await queryRoleResourceTree(row.id)
   permissionTree.value = response.data
-  checkedPermissions.value = collectCheckedIds(response.data)
+  checkedPermissions.value = collectDisplayCheckedIds(response.data)
+  permissionDialogVisible.value = true
   await nextTick()
   permissionTreeRef.value?.setCheckedKeys(checkedPermissions.value)
-  permissionDialogVisible.value = true
 }
 
 // 提交角色表单
@@ -422,17 +441,19 @@ const handleSubmitRole = async () => {
 const handleSubmitPermission = async () => {
   if (!currentRole.value) return
 
-  // 获取选中的权限
   const checkedKeys = permissionTreeRef.value.getCheckedKeys() as number[]
-  await setRoleResources(currentRole.value.id, checkedKeys)
-  currentRole.value.permissions = checkedKeys
+  const halfCheckedKeys = permissionTreeRef.value.getHalfCheckedKeys() as number[]
+  const selectedKeys = Array.from(new Set([...checkedKeys, ...halfCheckedKeys]))
+
+  await setRoleResources(currentRole.value.id, selectedKeys)
+  currentRole.value.permissions = selectedKeys
 
   // 更新角色列表中的权限
   const index = roleList.value.findIndex(item => item.id === currentRole.value.id)
   if (index > -1) {
     const targetRole = roleList.value[index]
     if (targetRole) {
-      targetRole.permissions = checkedKeys
+      targetRole.permissions = selectedKeys
     }
   }
 
