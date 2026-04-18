@@ -132,7 +132,9 @@ const loadCaptcha = async () => {
     captchaEnabled.value = Boolean(captcha.enabled)
     loginForm.key = captcha.key || ''
     loginForm.code = ''
-    captchaImage.value = captcha.image ? `data:image/png;base64,${captcha.image}` : ''
+    captchaImage.value = captcha.image
+      ? (captcha.image.startsWith('data:image/') ? captcha.image : `data:image/png;base64,${captcha.image}`)
+      : ''
   } catch {
     captchaEnabled.value = false
     loginForm.key = ''
