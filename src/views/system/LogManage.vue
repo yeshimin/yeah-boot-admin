@@ -31,9 +31,19 @@
       style="width: 100%"
     >
       <el-table-column prop="id" label="ID" width="90"></el-table-column>
-      <el-table-column prop="category" label="类别" min-width="140"></el-table-column>
-      <el-table-column prop="event" label="事件" min-width="180"></el-table-column>
-      <el-table-column prop="createBy" label="执行人" min-width="140"></el-table-column>
+      <el-table-column prop="triggerType" label="触发类型" width="110">
+        <template #default="{ row }">
+          {{ getTriggerTypeLabel(row.triggerType) }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="category" label="类别" width="120">
+        <template #default="{ row }">
+          {{ getCategoryLabel(row.category) }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="event" label="事件" min-width="160"></el-table-column>
+      <el-table-column prop="comment" label="方法" min-width="220" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="createBy" label="执行人" min-width="120"></el-table-column>
       <el-table-column prop="success" label="结果" width="100">
         <template #default="{ row }">
           <el-tag :type="row.success === '1' ? 'success' : 'danger'">
@@ -42,15 +52,13 @@
         </template>
       </el-table-column>
       <el-table-column prop="time" label="耗时(ms)" width="110"></el-table-column>
+      <el-table-column prop="input" label="输入" min-width="220" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="output" label="输出" min-width="220" show-overflow-tooltip></el-table-column>
+      <el-table-column prop="extra" label="额外信息" min-width="180" show-overflow-tooltip></el-table-column>
       <el-table-column prop="createTime" label="时间" min-width="180"></el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column label="操作" width="90" fixed="right">
         <template #default="{ row }">
-          <el-button
-            v-if="authStore.canAction('/system/log', { names: ['详情', '查看详情'], permissions: ['admin:sysLog:crud:detail', 'admin:sysLog:detail'] })"
-            link
-            type="primary"
-            @click="openDetail(row)"
-          >详情</el-button>
+          <el-button link type="primary" @click="openDetail(row)">详情</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -69,36 +77,39 @@
 
     <el-drawer v-model="detailVisible" title="日志详情" size="50%">
       <el-descriptions :column="1" border v-if="currentLog">
-        <el-descriptions-item label="类别">{{ currentLog.category || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="触发类型">
+          {{ getTriggerTypeLabel(currentLog.triggerType) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="类别">
+          {{ getCategoryLabel(currentLog.category) }}
+        </el-descriptions-item>
         <el-descriptions-item label="事件">{{ currentLog.event || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="触发类型">{{ currentLog.triggerType || '-' }}</el-descriptions-item>
         <el-descriptions-item label="执行人">{{ currentLog.createBy || '-' }}</el-descriptions-item>
         <el-descriptions-item label="结果">
           {{ currentLog.success === '1' ? '成功' : '失败' }}
         </el-descriptions-item>
         <el-descriptions-item label="耗时">{{ currentLog.time || 0 }} ms</el-descriptions-item>
         <el-descriptions-item label="时间">{{ currentLog.createTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="方法">{{ currentLog.comment || '-' }}</el-descriptions-item>
         <el-descriptions-item label="输入">{{ currentLog.input || '-' }}</el-descriptions-item>
         <el-descriptions-item label="输出">{{ currentLog.output || '-' }}</el-descriptions-item>
         <el-descriptions-item label="额外信息">{{ currentLog.extra || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="备注">{{ currentLog.comment || '-' }}</el-descriptions-item>
       </el-descriptions>
     </el-drawer>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useAuthStore } from '@/stores/auth'
 import { queryLogs } from '@/api/upms'
 import type { SysLogEntity } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
 
-const authStore = useAuthStore()
 const tableLoading = ref(false)
+const logList = ref<SysLogEntity[]>([])
 const detailVisible = ref(false)
 const currentLog = ref<SysLogEntity | null>(null)
-const logList = ref<SysLogEntity[]>([])
 
 const searchForm = reactive({
   category: '',
@@ -112,6 +123,18 @@ const pagination = reactive({
   pageSize: 10,
   total: 0,
 })
+
+const TRIGGER_TYPE_LABELS: Record<string, string> = {
+  '1': '系统自动',
+  '2': '用户手动',
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  '1': '鉴权相关',
+  '2': '数据操作',
+  '3': '定时任务',
+  '4': '上传下载',
+}
 
 async function getLogList() {
   tableLoading.value = true
@@ -157,6 +180,14 @@ async function handleSizeChange(size: number) {
 async function handleCurrentChange(page: number) {
   pagination.currentPage = page
   await getLogList()
+}
+
+function getTriggerTypeLabel(value?: string) {
+  return TRIGGER_TYPE_LABELS[value || ''] || value || '-'
+}
+
+function getCategoryLabel(value?: string) {
+  return CATEGORY_LABELS[value || ''] || value || '-'
 }
 
 function openDetail(log: SysLogEntity) {
