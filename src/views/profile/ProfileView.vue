@@ -300,12 +300,9 @@ const passwordRules = reactive<FormRules>({
     { min: 6, message: '新密码长度不能少于 6 位', trigger: 'blur' },
   ],
   confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
     {
       validator: (_rule, value, callback) => {
-        if (!value) {
-          callback(new Error('请再次输入新密码'))
-          return
-        }
         if (value !== passwordForm.newPassword) {
           callback(new Error('两次输入的新密码不一致'))
           return

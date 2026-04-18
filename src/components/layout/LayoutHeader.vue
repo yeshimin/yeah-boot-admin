@@ -34,10 +34,6 @@
               <el-icon><User /></el-icon>
               <span>个人中心</span>
             </el-dropdown-item>
-            <el-dropdown-item command="settings">
-              <el-icon><Setting /></el-icon>
-              <span>设置</span>
-            </el-dropdown-item>
             <el-dropdown-item divided command="logout">
               <el-icon><SwitchButton /></el-icon>
               <span>退出登录</span>
@@ -51,7 +47,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ArrowDown, Expand, Fold, User, Setting, SwitchButton } from '@element-plus/icons-vue'
+import { ArrowDown, Expand, Fold, User, SwitchButton } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getStoragePreviewUrl } from '@/api/storage'
@@ -142,9 +138,6 @@ const handleCommand = async (command: string) => {
       if (route.path !== '/profile') {
         await router.push('/profile')
       }
-      break
-    case 'settings':
-      ElMessage.info('设置功能待实现')
       break
     case 'logout':
       await authStore.logout()
