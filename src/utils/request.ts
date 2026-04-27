@@ -1,4 +1,4 @@
-import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
+import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import type { ApiResponse } from '@/types/api'
 import { getToken, removeToken } from './auth'
@@ -45,14 +45,16 @@ service.interceptors.request.use((config) => {
   const nextConfig = config
   const skipAuth = (nextConfig as RequestConfig).skipAuth
   const token = getToken()
+  const headers = AxiosHeaders.from(nextConfig.headers || {})
+  nextConfig.headers = headers
 
   // Let the browser generate the multipart boundary for FormData requests.
-  if (nextConfig.data instanceof FormData && nextConfig.headers) {
-    delete nextConfig.headers['Content-Type']
+  if (nextConfig.data instanceof FormData) {
+    headers.delete('Content-Type')
   }
 
   if (!skipAuth && token) {
-    nextConfig.headers.Authorization = `Bearer ${token}`
+    headers.set('Authorization', `Bearer ${token}`)
   }
 
   return nextConfig

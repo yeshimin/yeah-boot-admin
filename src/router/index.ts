@@ -36,6 +36,7 @@ const OrgManage = () => import('../views/system/OrgManage.vue')
 const PositionManage = () => import('../views/system/PositionManage.vue')
 const DictManage = () => import('../views/system/DictManage.vue')
 const LogManage = () => import('../views/system/LogManage.vue')
+const AreaManage = () => import('../views/system/AreaManage.vue')
 const ProfileView = () => import('../views/profile/ProfileView.vue')
 const backendViewModules = import.meta.glob('../views/**/*.vue')
 const registeredDynamicRouteNames = new Set<string>()
@@ -48,6 +49,10 @@ const BACKEND_COMPONENT_MAP: Record<string, () => Promise<unknown>> = {
   'system/post/index': PositionManage,
   'system/dict/index': DictManage,
   'system/log/index': LogManage,
+  'system/area/index': AreaManage,
+  'area/index': AreaManage,
+  'area/province/index': AreaManage,
+  'area/city/index': AreaManage,
 }
 
 // 动态路由
@@ -103,6 +108,12 @@ const asyncRoutes = [
         name: 'system-dict',
         component: DictManage,
         meta: { title: '字典管理' },
+      },
+      {
+        path: '/system/area',
+        name: 'system-area',
+        component: AreaManage,
+        meta: { title: '地区管理' },
       },
       {
         path: '/system/log',
