@@ -38,6 +38,7 @@ const DictManage = () => import('../views/system/DictManage.vue')
 const LogManage = () => import('../views/system/LogManage.vue')
 const AreaManage = () => import('../views/system/AreaManage.vue')
 const FileManage = () => import('../views/system/FileManage.vue')
+const StorageManage = () => import('../views/system/StorageManage.vue')
 const ProfileView = () => import('../views/profile/ProfileView.vue')
 const backendViewModules = import.meta.glob('../views/**/*.vue')
 const registeredDynamicRouteNames = new Set<string>()
@@ -52,11 +53,14 @@ const BACKEND_COMPONENT_MAP: Record<string, () => Promise<unknown>> = {
   'system/log/index': LogManage,
   'system/area/index': AreaManage,
   'system/file/index': FileManage,
+  'system/storage/index': StorageManage,
   'area/index': AreaManage,
   'area/province/index': AreaManage,
   'area/city/index': AreaManage,
   'basic/file/index': FileManage,
   'file/index': FileManage,
+  'basic/storage/index': StorageManage,
+  'storage/index': StorageManage,
 }
 
 // 动态路由
@@ -124,6 +128,12 @@ const asyncRoutes = [
         name: 'system-file',
         component: FileManage,
         meta: { title: '文件管理' },
+      },
+      {
+        path: '/system/storage',
+        name: 'system-storage',
+        component: StorageManage,
+        meta: { title: '存储管理' },
       },
       {
         path: '/system/log',
