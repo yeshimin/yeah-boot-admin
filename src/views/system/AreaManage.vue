@@ -39,7 +39,6 @@
             <template #default="{ data }">
               <div class="tree-node-row">
                 <span class="tree-node-label">{{ data.name }}</span>
-                <el-tag size="small" effect="plain">{{ data.level === 1 ? '省份' : '城市' }}</el-tag>
               </div>
             </template>
           </el-tree>
