@@ -32,10 +32,16 @@ const appStore = useAppStore()
 }
 
 .sidebar-wrapper {
-  transition: all 0.3s ease;
+  flex: 0 0 200px;
+  width: 200px;
+  overflow: hidden;
+  transition:
+    width 0.3s ease,
+    flex-basis 0.3s ease;
 }
 
 .sidebar-collapsed {
+  flex-basis: 64px;
   width: 64px;
 }
 

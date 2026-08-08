@@ -1,5 +1,5 @@
 <template>
-  <aside class="sidebar-container">
+  <aside class="sidebar-container" :class="{ 'is-collapsed': isCollapse }">
     <div class="sidebar-logo">
       <h1>管理后台</h1>
     </div>
@@ -39,11 +39,10 @@ const menuList = computed(() => authStore.sidebarMenus)
 
 <style scoped>
 .sidebar-container {
-  width: 200px;
+  width: 100%;
   height: 100vh;
   background-color: #001529;
   color: #fff;
-  transition: all 0.3s ease;
   overflow: hidden;
 }
 
@@ -90,9 +89,22 @@ const menuList = computed(() => authStore.sidebarMenus)
   font-size: 18px;
   margin: 0;
   color: #fff;
+  white-space: nowrap;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity 0.15s ease,
+    transform 0.3s ease;
+}
+
+.sidebar-container.is-collapsed .sidebar-logo h1 {
+  opacity: 0;
+  transform: translateX(-8px);
 }
 
 .sidebar-menu {
+  width: 100%;
   height: calc(100vh - 60px);
+  transition: width 0.3s ease;
 }
 </style>
