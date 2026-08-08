@@ -1,7 +1,8 @@
 import axios, { AxiosError, AxiosHeaders, type AxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import type { ApiResponse } from '@/types/api'
-import { getToken, removeToken } from './auth'
+import { getToken } from './auth'
+import { handleUnauthorized } from './session'
 
 type RequestConfig = AxiosRequestConfig & {
   skipAuth?: boolean
@@ -63,6 +64,14 @@ service.interceptors.request.use((config) => {
 service.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    const requestConfig = error.config as RequestConfig | undefined
+    if (error.response?.status === 401 && !requestConfig?.skipAuth) {
+      const responseData = error.response.data as Partial<ApiResponse<unknown>> | undefined
+      const message = responseData?.message || '登录状态已失效，请重新登录'
+      void handleUnauthorized(message)
+      return Promise.reject(error)
+    }
+
     let message = error.message || '请求失败'
 
     if (message.includes('Network Error')) {
@@ -88,9 +97,8 @@ export function request<T>(config: RequestConfig) {
       return payload
     }
 
-    if (code === 401) {
-      removeToken()
-      ElMessage.error(message || '登录状态已失效，请重新登录')
+    if (code === 401 && !config.skipAuth) {
+      void handleUnauthorized(message || '登录状态已失效，请重新登录')
       return Promise.reject(new Error(message || 'Unauthorized'))
     }
 
