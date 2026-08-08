@@ -175,17 +175,30 @@ function resolveBackendView(component?: string) {
   return RoutePlaceholderView
 }
 
+function hasInternalRouteNode(node: ResourceTreeNode): boolean {
+  if (node.isLink) {
+    return false
+  }
+
+  if (node.children?.some(hasInternalRouteNode)) {
+    return true
+  }
+
+  return node.type === 2 && Boolean(node.path)
+}
+
 function buildDynamicRouteNode(node: ResourceTreeNode): RouteRecordRaw {
   const routeName = `dynamic-${node.id}`
-  const hasChildren = Boolean(node.children?.length)
+  const internalChildren = (node.children || []).filter(hasInternalRouteNode)
+  const hasChildren = internalChildren.length > 0
 
   if (hasChildren) {
-    const children = (node.children || []).map((child) => buildDynamicRouteNode(child)).map((child) => ({
+    const children = internalChildren.map((child) => buildDynamicRouteNode(child)).map((child) => ({
       ...child,
       path: String(child.path).replace(`${node.path}/`, ''),
     }))
 
-    const firstChild = node.children?.find((child) => child.path)?.path
+    const firstChild = internalChildren.find((child) => child.path)?.path
 
     return {
       path: node.path || `/${node.id}`,
@@ -214,7 +227,9 @@ function buildDynamicRouteNode(node: ResourceTreeNode): RouteRecordRaw {
 }
 
 function ensureDynamicRoutes(resources: ResourceTreeNode[]) {
-  const dynamicMenus = resources.filter((item) => !item.path?.startsWith('/system'))
+  const dynamicMenus = resources.filter(
+    (item) => hasInternalRouteNode(item) && !item.path?.startsWith('/system'),
+  )
   dynamicMenus.forEach((node) => {
     const route = buildDynamicRouteNode(node)
     if (route.name && !registeredDynamicRouteNames.has(String(route.name))) {

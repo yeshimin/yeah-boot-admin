@@ -46,7 +46,7 @@ function normalizeMenuTree(resources: ResourceTreeNode[], parentPath?: string): 
       }
     })
     .filter((item) => item.checked === true || (item.children?.length ?? 0) > 0)
-    .filter((item) => Boolean(item.path) || (item.children?.length ?? 0) > 0)
+    .filter((item) => Boolean(item.path) || Boolean(item.isLink && item.linkUrl) || (item.children?.length ?? 0) > 0)
     .sort((left, right) => (left.sort || 0) - (right.sort || 0))
 }
 
@@ -68,7 +68,7 @@ function collectAccessiblePaths(resources: ResourceTreeNode[]): string[] {
   const walk = (nodes: ResourceTreeNode[]) => {
     nodes.forEach((node) => {
       const hasChildren = Boolean(node.children?.length)
-      if (!hasChildren && node.path) {
+      if (!node.isLink && !hasChildren && node.path) {
         paths.push(node.path)
       }
       if (node.children?.length) {
@@ -89,7 +89,7 @@ function findFirstLeafPath(resources: ResourceTreeNode[]): string {
         return childPath
       }
     }
-    if (node.path) {
+    if (!node.isLink && node.path) {
       return node.path
     }
   }

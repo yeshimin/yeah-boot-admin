@@ -8,8 +8,8 @@
         :default-active="activeMenu"
         class="sidebar-menu"
         :collapse="isCollapse"
-        router
         :unique-opened="true"
+        @select="handleMenuSelect"
       >
         <LayoutMenuNode v-for="menu in menuList" :key="menu.id" :node="menu" />
       </el-menu>
@@ -19,12 +19,15 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import LayoutMenuNode from './LayoutMenuNode.vue'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import type { ResourceTreeNode } from '@/types/upms'
 
 const route = useRoute()
+const router = useRouter()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 
@@ -35,6 +38,58 @@ const activeMenu = computed(() => {
 
 const isCollapse = computed(() => appStore.sidebarCollapsed)
 const menuList = computed(() => authStore.sidebarMenus)
+
+function findMenuNode(nodes: ResourceTreeNode[], index: string): ResourceTreeNode | null {
+  for (const node of nodes) {
+    if (node.path === index || String(node.id) === index) {
+      return node
+    }
+    if (node.children?.length) {
+      const found = findMenuNode(node.children, index)
+      if (found) {
+        return found
+      }
+    }
+  }
+  return null
+}
+
+function resolveExternalUrl(linkUrl?: string) {
+  if (!linkUrl) {
+    return null
+  }
+
+  try {
+    const url = new URL(linkUrl)
+    return ['http:', 'https:'].includes(url.protocol) ? url : null
+  } catch {
+    return null
+  }
+}
+
+async function handleMenuSelect(index: string) {
+  const node = findMenuNode(menuList.value, index)
+
+  if (node?.isLink) {
+    const externalUrl = resolveExternalUrl(node.linkUrl)
+    if (!externalUrl) {
+      ElMessage.warning('外链地址无效，请联系管理员检查菜单配置')
+      return
+    }
+
+    window.open(externalUrl.href, '_blank', 'noopener,noreferrer')
+    return
+  }
+
+  if (!node?.path) {
+    ElMessage.warning('菜单路径未配置')
+    return
+  }
+
+  if (node.path !== route.path) {
+    await router.push(node.path)
+  }
+}
 </script>
 
 <style scoped>
