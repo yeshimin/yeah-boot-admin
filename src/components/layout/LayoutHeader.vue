@@ -24,7 +24,7 @@
     <div class="header-right">
       <el-dropdown trigger="click" @command="handleCommand">
         <div class="user-info">
-          <el-avatar :size="32" :src="avatarUrl || defaultAvatar"></el-avatar>
+          <el-avatar :size="32" :src="avatarUrl || defaultAvatar" @error="handleAvatarError"></el-avatar>
           <span class="user-name">{{ authStore.displayName }}</span>
           <el-icon class="el-icon--right"><arrow-down /></el-icon>
         </div>
@@ -46,13 +46,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ArrowDown, Expand, Fold, User, SwitchButton } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getStoragePreviewUrl } from '@/api/storage'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import { DEFAULT_AVATAR_URL, resolveAvatarUrl } from '@/utils/avatar'
 
 const router = useRouter()
 const route = useRoute()
@@ -67,7 +67,8 @@ function hasConcreteRoute(path?: string) {
 }
 
 // 默认头像
-const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
+const defaultAvatar = DEFAULT_AVATAR_URL
+const avatarLoadFailed = ref(false)
 
 function findMenuTrail(
   nodes: Array<{ name: string; path?: string; children?: Array<any> }>,
@@ -112,19 +113,22 @@ const breadcrumbList = computed(() => {
 
 const collapseIcon = computed(() => (appStore.sidebarCollapsed ? Expand : Fold))
 
+const avatarSource = computed(() => authStore.mine?.user?.avatar || '')
 const avatarUrl = computed(() => {
-  const avatar = authStore.mine?.user?.avatar
-  if (!avatar) {
+  if (avatarLoadFailed.value) {
     return ''
   }
-  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar
-  }
-  if (avatar.startsWith('/')) {
-    return `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8080'}${avatar}`
-  }
-  return getStoragePreviewUrl(avatar)
+  return resolveAvatarUrl(avatarSource.value)
 })
+
+watch(avatarSource, () => {
+  avatarLoadFailed.value = false
+})
+
+function handleAvatarError() {
+  avatarLoadFailed.value = true
+  return false
+}
 
 // 切换侧边栏折叠状态
 const toggleSidebar = () => {

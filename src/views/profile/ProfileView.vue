@@ -2,7 +2,12 @@
   <div class="profile-view">
     <section class="profile-hero">
       <div class="profile-hero__identity">
-        <el-avatar :size="72" :src="avatarUrl || defaultAvatar" class="profile-hero__avatar" />
+        <el-avatar
+          :size="72"
+          :src="avatarUrl || defaultAvatar"
+          class="profile-hero__avatar"
+          @error="handleAvatarError('profile')"
+        />
         <div class="profile-hero__meta">
           <h1>{{ authStore.displayName }}</h1>
           <p>{{ user?.username || '-' }}</p>
@@ -66,7 +71,11 @@
           >
             <el-form-item label="头像" prop="avatar">
               <div class="avatar-field">
-                <el-avatar :size="52" :src="avatarPreview || defaultAvatar" />
+                <el-avatar
+                  :size="52"
+                  :src="avatarPreview || defaultAvatar"
+                  @error="handleAvatarError('form')"
+                />
                 <div class="avatar-field__body">
                   <div class="avatar-actions">
                     <input
@@ -169,10 +178,11 @@ import { Refresh } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { getStoragePreviewUrl, uploadStorageFile } from '@/api/storage'
+import { uploadStorageFile } from '@/api/storage'
 import { updateMine } from '@/api/upms'
 import { useAuthStore } from '@/stores/auth'
 import type { UpdateMineRequest } from '@/types/upms'
+import { DEFAULT_AVATAR_URL, normalizeAvatarValue, resolveAvatarUrl } from '@/utils/avatar'
 import { sha256Hex } from '@/utils/crypto'
 
 const router = useRouter()
@@ -186,7 +196,9 @@ const passwordFormRef = ref<FormInstance>()
 const avatarInputRef = ref<HTMLInputElement>()
 const pendingAvatarFile = ref<File | null>(null)
 const pendingAvatarUrl = ref('')
-const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
+const profileAvatarLoadFailed = ref(false)
+const formAvatarLoadFailed = ref(false)
+const defaultAvatar = DEFAULT_AVATAR_URL
 const maxAvatarSizeInMb = 5
 
 const user = computed(() => authStore.mine?.user || null)
@@ -208,29 +220,23 @@ const passwordForm = reactive({
   confirmPassword: '',
 })
 
-function normalizeAvatarValue(avatar?: string | null) {
-  return avatar?.trim() || ''
-}
-
-function resolveAvatarUrl(avatar?: string | null) {
-  if (!avatar) {
-    return ''
-  }
-  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar
-  }
-  if (avatar.startsWith('/')) {
-    return `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8080'}${avatar}`
-  }
-  return getStoragePreviewUrl(avatar)
-}
-
 function normalizeGender(value?: string) {
   return ['0', '1', '2'].includes(value || '') ? String(value) : '0'
 }
 
-const avatarUrl = computed(() => resolveAvatarUrl(user.value?.avatar))
-const avatarPreview = computed(() => pendingAvatarUrl.value || resolveAvatarUrl(profileForm.avatar))
+const avatarSource = computed(() => user.value?.avatar || '')
+const avatarUrl = computed(() => {
+  if (profileAvatarLoadFailed.value) {
+    return ''
+  }
+  return resolveAvatarUrl(avatarSource.value)
+})
+const avatarPreview = computed(() => {
+  if (formAvatarLoadFailed.value) {
+    return ''
+  }
+  return pendingAvatarUrl.value || resolveAvatarUrl(profileForm.avatar)
+})
 
 const genderText = computed(() => {
   if (user.value?.gender === '1') {
@@ -406,6 +412,14 @@ watch(
   { immediate: true },
 )
 
+watch(avatarSource, () => {
+  profileAvatarLoadFailed.value = false
+})
+
+watch([() => pendingAvatarUrl.value, () => profileForm.avatar], () => {
+  formAvatarLoadFailed.value = false
+})
+
 onBeforeUnmount(() => {
   revokePendingAvatarUrl()
 })
@@ -418,6 +432,15 @@ async function handleRefresh() {
   } finally {
     refreshing.value = false
   }
+}
+
+function handleAvatarError(type: 'profile' | 'form') {
+  if (type === 'profile') {
+    profileAvatarLoadFailed.value = true
+  } else {
+    formAvatarLoadFailed.value = true
+  }
+  return false
 }
 
 async function handleSubmitProfile() {

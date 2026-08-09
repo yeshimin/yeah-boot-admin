@@ -30,8 +30,7 @@ export function uploadStorageFile(payload: UploadStorageRequest) {
 }
 
 export function getStoragePreviewUrl(fileKey: string) {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8080'
-  return `${baseUrl}/public/storage/preview?fileKey=${encodeURIComponent(fileKey)}`
+  return resolveApiUrl(`/public/storage/preview?fileKey=${encodeURIComponent(fileKey)}`)
 }
 
 export function queryStorageFiles(params: Record<string, unknown>) {
