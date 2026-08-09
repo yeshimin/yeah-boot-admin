@@ -349,15 +349,19 @@ async function handleDownload(row: ManagedFileRecord) {
     return
   }
 
-  const { blob, fileName } = await downloadFile(row.fileKey, row.originalName || row.fileKey)
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName || row.fileKey
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  try {
+    const { blob, fileName } = await downloadFile(row.fileKey, row.originalName || row.fileKey)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName || row.fileKey
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  } catch {
+    // 下载接口已统一处理错误提示和登录失效跳转
+  }
 }
 
 async function handleDelete(row: ManagedFileRecord) {

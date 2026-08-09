@@ -1,5 +1,5 @@
 import { request } from '@/utils/request'
-import { getToken } from '@/utils/auth'
+import { downloadByUrl, resolveApiUrl } from '@/utils/download'
 import type { PageResponse } from '@/types/api'
 
 export interface UploadStorageRequest {
@@ -59,48 +59,9 @@ export function deleteStorageFile(fileKey: string) {
 }
 
 function resolveStorageDownloadUrl(fileKey: string) {
-  if (import.meta.env.DEV) {
-    return `/api/basic/storage/download?fileKey=${encodeURIComponent(fileKey)}`
-  }
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8080'
-  return `${baseUrl}/basic/storage/download?fileKey=${encodeURIComponent(fileKey)}`
-}
-
-function parseFileName(contentDisposition: string | null, fallback: string) {
-  if (!contentDisposition) {
-    return fallback
-  }
-
-  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
-  if (utf8Match?.[1]) {
-    return decodeURIComponent(utf8Match[1])
-  }
-
-  const basicMatch = contentDisposition.match(/filename="?([^";]+)"?/i)
-  if (basicMatch?.[1]) {
-    return basicMatch[1]
-  }
-
-  return fallback
+  return resolveApiUrl(`/basic/storage/download?fileKey=${encodeURIComponent(fileKey)}`)
 }
 
 export async function downloadStorageFile(fileKey: string, fallbackName = fileKey) {
-  const token = getToken()
-  const response = await fetch(resolveStorageDownloadUrl(fileKey), {
-    method: 'GET',
-    headers: token
-      ? {
-          Authorization: `Bearer ${token}`,
-        }
-      : undefined,
-  })
-
-  if (!response.ok) {
-    throw new Error(`下载失败: ${response.status}`)
-  }
-
-  return {
-    blob: await response.blob(),
-    fileName: parseFileName(response.headers.get('content-disposition'), fallbackName),
-  }
+  return downloadByUrl(resolveStorageDownloadUrl(fileKey), fallbackName)
 }
