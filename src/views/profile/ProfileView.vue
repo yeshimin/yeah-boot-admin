@@ -53,7 +53,7 @@
           <template #header>
             <div class="profile-card__header">
               <span>编辑资料</span>
-              <el-tag effect="plain">updateMine</el-tag>
+              <el-tag effect="plain">资料维护</el-tag>
             </div>
           </template>
 
@@ -111,7 +111,7 @@
           <template #header>
             <div class="profile-card__header">
               <span>修改密码</span>
-              <el-tag effect="plain">SHA-256</el-tag>
+              <el-tag effect="plain">安全验证</el-tag>
             </div>
           </template>
 
