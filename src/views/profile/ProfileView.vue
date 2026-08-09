@@ -76,8 +76,8 @@
                       accept="image/*"
                       @change="handleAvatarFileChange"
                     />
-                    <el-button :loading="avatarUploading" @click="triggerAvatarSelect">上传头像</el-button>
-                    <el-button link @click="profileForm.avatar = ''">清空</el-button>
+                    <el-button @click="triggerAvatarSelect">选择头像</el-button>
+                    <el-button link @click="handleClearAvatar">清空</el-button>
                   </div>
                 </div>
               </div>
@@ -164,7 +164,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
@@ -184,6 +184,8 @@ const passwordSaving = ref(false)
 const profileFormRef = ref<FormInstance>()
 const passwordFormRef = ref<FormInstance>()
 const avatarInputRef = ref<HTMLInputElement>()
+const pendingAvatarFile = ref<File | null>(null)
+const pendingAvatarUrl = ref('')
 const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
 const maxAvatarSizeInMb = 5
 
@@ -206,7 +208,11 @@ const passwordForm = reactive({
   confirmPassword: '',
 })
 
-function resolveAvatarUrl(avatar?: string) {
+function normalizeAvatarValue(avatar?: string | null) {
+  return avatar?.trim() || ''
+}
+
+function resolveAvatarUrl(avatar?: string | null) {
   if (!avatar) {
     return ''
   }
@@ -224,7 +230,7 @@ function normalizeGender(value?: string) {
 }
 
 const avatarUrl = computed(() => resolveAvatarUrl(user.value?.avatar))
-const avatarPreview = computed(() => resolveAvatarUrl(profileForm.avatar) || avatarUrl.value)
+const avatarPreview = computed(() => pendingAvatarUrl.value || resolveAvatarUrl(profileForm.avatar))
 
 const genderText = computed(() => {
   if (user.value?.gender === '1') {
@@ -325,6 +331,8 @@ function syncProfileForm() {
 }
 
 function resetProfileForm() {
+  revokePendingAvatarUrl()
+  pendingAvatarFile.value = null
   syncProfileForm()
   profileFormRef.value?.clearValidate()
 }
@@ -336,6 +344,31 @@ function resetPasswordForm() {
     confirmPassword: '',
   })
   passwordFormRef.value?.clearValidate()
+}
+
+function resolveAvatarPayload() {
+  const currentAvatar = normalizeAvatarValue(user.value?.avatar)
+  const nextAvatar = normalizeAvatarValue(profileForm.avatar)
+  return nextAvatar === currentAvatar ? null : nextAvatar
+}
+
+function revokePendingAvatarUrl() {
+  if (pendingAvatarUrl.value) {
+    URL.revokeObjectURL(pendingAvatarUrl.value)
+    pendingAvatarUrl.value = ''
+  }
+}
+
+function setPendingAvatarFile(file: File) {
+  revokePendingAvatarUrl()
+  pendingAvatarFile.value = file
+  pendingAvatarUrl.value = URL.createObjectURL(file)
+}
+
+function handleClearAvatar() {
+  revokePendingAvatarUrl()
+  pendingAvatarFile.value = null
+  profileForm.avatar = ''
 }
 
 function triggerAvatarSelect() {
@@ -361,20 +394,8 @@ async function handleAvatarFileChange(event: Event) {
     return
   }
 
-  avatarUploading.value = true
-  try {
-    const response = await uploadStorageFile({
-      file,
-      storageType: '1',
-      isPublic: 'true',
-      isUsed: 'false',
-      path: 'tempdir0129',
-    })
-    profileForm.avatar = response.data.fileKey
-    ElMessage.success('头像上传成功')
-  } finally {
-    avatarUploading.value = false
-  }
+  setPendingAvatarFile(file)
+  profileForm.avatar = normalizeAvatarValue(user.value?.avatar)
 }
 
 watch(
@@ -384,6 +405,10 @@ watch(
   },
   { immediate: true },
 )
+
+onBeforeUnmount(() => {
+  revokePendingAvatarUrl()
+})
 
 async function handleRefresh() {
   refreshing.value = true
@@ -403,18 +428,32 @@ async function handleSubmitProfile() {
   await profileFormRef.value.validate()
   profileSaving.value = true
   try {
+    let avatar = resolveAvatarPayload()
+    if (pendingAvatarFile.value) {
+      avatarUploading.value = true
+      const response = await uploadStorageFile({
+        file: pendingAvatarFile.value,
+        storageType: '1',
+        isPublic: 'true',
+        isUsed: 'false',
+        path: 'tempdir0129',
+      })
+      avatar = response.data.fileKey
+    }
+
     const payload: UpdateMineRequest = {
       nickname: profileForm.nickname.trim(),
       mobile: profileForm.mobile.trim(),
       email: profileForm.email.trim(),
       gender: normalizeGender(profileForm.gender),
-      avatar: profileForm.avatar.trim(),
+      avatar,
     }
     await updateMine(payload)
     await authStore.refreshProfile()
     resetProfileForm()
     ElMessage.success('个人资料保存成功')
   } finally {
+    avatarUploading.value = false
     profileSaving.value = false
   }
 }

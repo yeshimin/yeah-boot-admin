@@ -61,7 +61,7 @@ export interface SysUserEntity {
   password?: string
   status?: string
   nickname?: string
-  avatar?: string
+  avatar?: string | null
   mobile?: string
   email?: string
   gender?: string
@@ -81,7 +81,7 @@ export interface UpdateMineRequest {
   mobile?: string
   email?: string
   gender?: string
-  avatar?: string
+  avatar?: string | null
   oldPassword?: string
   newPassword?: string
 }
