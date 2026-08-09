@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { isPageResourceType } from '@/constants/resource'
 import type { ResourceTreeNode } from '@/types/upms'
 
 // 引入 Layout 组件
@@ -184,7 +185,7 @@ function hasInternalRouteNode(node: ResourceTreeNode): boolean {
     return true
   }
 
-  return node.type === 2 && Boolean(node.path)
+  return isPageResourceType(node.type) && Boolean(node.path)
 }
 
 function buildDynamicRouteNode(node: ResourceTreeNode): RouteRecordRaw {

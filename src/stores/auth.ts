@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { getCaptcha as getCaptchaApi, login as loginApi, logout as logoutApi } from '@/api/auth'
 import { getMine, getMineResources } from '@/api/upms'
+import { RESOURCE_TYPE, isActionResourceType, isMenuResourceType } from '@/constants/resource'
 import type { CaptchaVo, LoginRequest, MineVo, ResourceTreeNode } from '@/types/upms'
 import { getToken, removeToken, setToken } from '@/utils/auth'
 import { resetUnauthorizedState } from '@/utils/session'
@@ -32,10 +33,10 @@ function toAbsolutePath(parentPath: string | undefined, path: string | undefined
 
 function normalizeMenuTree(resources: ResourceTreeNode[], parentPath?: string): ResourceTreeNode[] {
   return resources
-    .filter((item) => item.visible !== false && item.type <= 2)
+    .filter((item) => item.visible !== false && isMenuResourceType(item.type))
     .map((item) => {
       const absolutePath = toAbsolutePath(parentPath, item.path)
-      const normalizedPath = item.type === 1 ? absolutePath : (MENU_ROUTE_MAP[absolutePath] || absolutePath)
+      const normalizedPath = item.type === RESOURCE_TYPE.MENU ? absolutePath : (MENU_ROUTE_MAP[absolutePath] || absolutePath)
       const normalizedName = absolutePath === '/system/dept' ? '组织管理' : item.name
       const children = item.children ? normalizeMenuTree(item.children, absolutePath) : []
       return {
@@ -53,7 +54,7 @@ function normalizeMenuTree(resources: ResourceTreeNode[], parentPath?: string): 
 function normalizeResourceTree(resources: ResourceTreeNode[], parentPath?: string): ResourceTreeNode[] {
   return resources.map((item) => {
     const absolutePath = toAbsolutePath(parentPath, item.path)
-    const normalizedPath = item.type === 1 ? absolutePath : (MENU_ROUTE_MAP[absolutePath] || absolutePath)
+    const normalizedPath = item.type === RESOURCE_TYPE.MENU ? absolutePath : (MENU_ROUTE_MAP[absolutePath] || absolutePath)
     return {
       ...item,
       path: normalizedPath,
@@ -128,7 +129,7 @@ function collectDescendantActionNodes(node: ResourceTreeNode): ResourceTreeNode[
 
   const walk = (children?: ResourceTreeNode[]) => {
     children?.forEach((child) => {
-      if (child.type >= 3) {
+      if (isActionResourceType(child.type)) {
         actions.push(child)
       }
       if (child.children?.length) {
