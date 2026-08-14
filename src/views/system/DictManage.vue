@@ -3,14 +3,14 @@
     <div class="action-bar">
       <div class="action-buttons">
         <el-button
-          v-if="authStore.canAction('/system/dict', { names: ['新增根节点', '新增子节点', '新增'], permissions: ['admin:sysDict:create', 'admin:sysDict:crud:create'] })"
+          v-if="canCreateDict"
           type="primary"
           @click="handleAddRoot"
         >
           <el-icon><Plus /></el-icon>新增根节点
         </el-button>
         <el-button
-          v-if="authStore.canAction('/system/dict', { names: ['新增根节点', '新增子节点', '新增'], permissions: ['admin:sysDict:create', 'admin:sysDict:crud:create'] })"
+          v-if="canCreateDict"
           :disabled="!currentNode"
           @click="handleAddChild"
         >
@@ -46,7 +46,7 @@
                 <span class="tree-node-label">{{ data.name }}</span>
                 <div class="tree-node-actions">
                   <el-button
-                    v-if="authStore.canAction('/system/dict', { names: ['新增根节点', '新增子节点', '新增'], permissions: ['admin:sysDict:create', 'admin:sysDict:crud:create'] })"
+                    v-if="canCreateDict"
                     link
                     type="primary"
                     size="small"
@@ -56,7 +56,7 @@
                     <el-icon><Plus /></el-icon>
                   </el-button>
                   <el-button
-                    v-if="authStore.canAction('/system/dict', { names: ['编辑当前节点', '编辑'], permissions: ['admin:sysDict:update', 'admin:sysDict:crud:update'] })"
+                    v-if="canUpdateDict"
                     link
                     type="primary"
                     size="small"
@@ -66,7 +66,7 @@
                     <el-icon><Edit /></el-icon>
                   </el-button>
                   <el-button
-                    v-if="authStore.canAction('/system/dict', { names: ['删除当前节点', '删除'], permissions: ['admin:sysDict:delete', 'admin:sysDict:crud:delete'] })"
+                    v-if="canDeleteDict"
                     link
                     type="danger"
                     size="small"
@@ -87,13 +87,13 @@
           <h3>当前节点</h3>
           <div class="detail-actions" v-if="currentNode">
             <el-button
-              v-if="authStore.canAction('/system/dict', { names: ['编辑当前节点', '编辑'], permissions: ['admin:sysDict:update', 'admin:sysDict:crud:update'] })"
+              v-if="canUpdateDict"
               size="small"
               type="primary"
               @click="handleEdit(currentNode)"
             >编辑当前节点</el-button>
             <el-button
-              v-if="authStore.canAction('/system/dict', { names: ['删除当前节点', '删除'], permissions: ['admin:sysDict:delete', 'admin:sysDict:crud:delete'] })"
+              v-if="canDeleteDict"
               size="small"
               type="danger"
               @click="handleDelete(currentNode)"
@@ -132,22 +132,22 @@
           <el-table-column prop="sort" label="排序" width="90"></el-table-column>
           <el-table-column prop="remark" label="备注" min-width="180"></el-table-column>
           <el-table-column prop="createTime" label="创建时间" min-width="180"></el-table-column>
-          <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column v-if="hasDictRowActions" label="操作" width="220" fixed="right">
             <template #default="{ row }">
               <el-button
-                v-if="authStore.canAction('/system/dict', { names: ['新增根节点', '新增子节点', '新增'], permissions: ['admin:sysDict:create', 'admin:sysDict:crud:create'] })"
+                v-if="canCreateDict"
                 link
                 type="primary"
                 @click="handleAddChild(row)"
               >新增子节点</el-button>
               <el-button
-                v-if="authStore.canAction('/system/dict', { names: ['编辑当前节点', '编辑'], permissions: ['admin:sysDict:update', 'admin:sysDict:crud:update'] })"
+                v-if="canUpdateDict"
                 link
                 type="primary"
                 @click="handleEdit(row)"
               >编辑</el-button>
               <el-button
-                v-if="authStore.canAction('/system/dict', { names: ['删除当前节点', '删除'], permissions: ['admin:sysDict:delete', 'admin:sysDict:crud:delete'] })"
+                v-if="canDeleteDict"
                 link
                 type="danger"
                 @click="handleDelete(row)"
@@ -197,7 +197,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit">确定</el-button>
+          <el-button v-if="canSubmitDictForm" type="primary" @click="handleSubmit">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -214,6 +214,9 @@ import { createDict, deleteDicts, getDictDetail, getDictTree, updateDict } from 
 import type { SysDictTreeNode } from '@/types/upms'
 
 const authStore = useAuthStore()
+const canCreateDict = computed(() => authStore.hasPermission('admin:sysDict:create'))
+const canUpdateDict = computed(() => authStore.hasPermission('admin:sysDict:update'))
+const canDeleteDict = computed(() => authStore.hasPermission('admin:sysDict:delete'))
 
 const treeRef = ref()
 const formRef = ref<FormInstance>()
@@ -238,6 +241,12 @@ const form = ref({
   sort: 1,
   remark: '',
 })
+const canSubmitDictForm = computed(() => (form.value.id ? canUpdateDict.value : canCreateDict.value))
+const hasDictRowActions = computed(() => canCreateDict.value || canUpdateDict.value || canDeleteDict.value)
+
+function warnNoPermission() {
+  ElMessage.warning('暂无操作权限')
+}
 
 const formRules = reactive<FormRules>({
   code: [
@@ -336,12 +345,20 @@ function handleNodeClick(node: SysDictTreeNode) {
 }
 
 function handleAddRoot() {
+  if (!canCreateDict.value) {
+    warnNoPermission()
+    return
+  }
   resetForm()
   dialogTitle.value = '新增根节点'
   dialogVisible.value = true
 }
 
 function handleAddChild(parent?: SysDictTreeNode) {
+  if (!canCreateDict.value) {
+    warnNoPermission()
+    return
+  }
   resetForm()
   form.value.parentId = parent?.id || currentNode.value?.id || 0
   dialogTitle.value = '新增子节点'
@@ -349,6 +366,10 @@ function handleAddChild(parent?: SysDictTreeNode) {
 }
 
 async function handleEdit(row: SysDictTreeNode) {
+  if (!canUpdateDict.value) {
+    warnNoPermission()
+    return
+  }
   resetForm()
   const response = await getDictDetail(row.id)
   form.value = {
@@ -365,6 +386,10 @@ async function handleEdit(row: SysDictTreeNode) {
 }
 
 async function handleDelete(row: SysDictTreeNode) {
+  if (!canDeleteDict.value) {
+    warnNoPermission()
+    return
+  }
   ElMessageBox.confirm('确定要删除该字典节点吗？如存在子节点，后端可能会拒绝删除。', '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
@@ -382,6 +407,10 @@ async function handleDelete(row: SysDictTreeNode) {
 }
 
 async function handleSubmit() {
+  if (!canSubmitDictForm.value) {
+    warnNoPermission()
+    return
+  }
   if (!formRef.value) {
     return
   }

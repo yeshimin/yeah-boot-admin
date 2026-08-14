@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { getCaptcha as getCaptchaApi, login as loginApi, logout as logoutApi } from '@/api/auth'
 import { getMine, getMineResources } from '@/api/upms'
-import { RESOURCE_TYPE, isActionResourceType, isMenuResourceType } from '@/constants/resource'
+import { RESOURCE_TYPE, isMenuResourceType } from '@/constants/resource'
 import type { CaptchaVo, LoginRequest, MineVo, ResourceTreeNode } from '@/types/upms'
 import { getToken, removeToken, setToken } from '@/utils/auth'
 import { resetUnauthorizedState } from '@/utils/session'
@@ -31,34 +31,36 @@ function toAbsolutePath(parentPath: string | undefined, path: string | undefined
   return `${parentPath}/${path}`.replace(/\/+/g, '/')
 }
 
-function normalizeMenuTree(resources: ResourceTreeNode[], parentPath?: string): ResourceTreeNode[] {
+function normalizeMenuTree(resources: ResourceTreeNode[], parentPath?: string, forceChecked = false): ResourceTreeNode[] {
   return resources
     .filter((item) => item.visible !== false && isMenuResourceType(item.type))
     .map((item) => {
       const absolutePath = toAbsolutePath(parentPath, item.path)
       const normalizedPath = item.type === RESOURCE_TYPE.MENU ? absolutePath : (MENU_ROUTE_MAP[absolutePath] || absolutePath)
       const normalizedName = absolutePath === '/system/dept' ? '组织管理' : item.name
-      const children = item.children ? normalizeMenuTree(item.children, absolutePath) : []
+      const children = item.children ? normalizeMenuTree(item.children, absolutePath, forceChecked) : []
       return {
         ...item,
+        checked: forceChecked || item.checked,
         name: normalizedName,
         path: normalizedPath,
         children,
       }
     })
-    .filter((item) => item.checked === true || (item.children?.length ?? 0) > 0)
+    .filter((item) => forceChecked || item.checked === true || (item.children?.length ?? 0) > 0)
     .filter((item) => Boolean(item.path) || Boolean(item.isLink && item.linkUrl) || (item.children?.length ?? 0) > 0)
     .sort((left, right) => (left.sort || 0) - (right.sort || 0))
 }
 
-function normalizeResourceTree(resources: ResourceTreeNode[], parentPath?: string): ResourceTreeNode[] {
+function normalizeResourceTree(resources: ResourceTreeNode[], parentPath?: string, forceChecked = false): ResourceTreeNode[] {
   return resources.map((item) => {
     const absolutePath = toAbsolutePath(parentPath, item.path)
     const normalizedPath = item.type === RESOURCE_TYPE.MENU ? absolutePath : (MENU_ROUTE_MAP[absolutePath] || absolutePath)
     return {
       ...item,
+      checked: forceChecked || item.checked,
       path: normalizedPath,
-      children: item.children ? normalizeResourceTree(item.children, absolutePath) : [],
+      children: item.children ? normalizeResourceTree(item.children, absolutePath, forceChecked) : [],
     }
   })
 }
@@ -109,39 +111,6 @@ function collectPermissionSet(resources: ResourceTreeNode[], bucket = new Set<st
   return bucket
 }
 
-function findNodeByPath(resources: ResourceTreeNode[], path: string): ResourceTreeNode | null {
-  for (const node of resources) {
-    if (node.path === path) {
-      return node
-    }
-    if (node.children?.length) {
-      const found = findNodeByPath(node.children, path)
-      if (found) {
-        return found
-      }
-    }
-  }
-  return null
-}
-
-function collectDescendantActionNodes(node: ResourceTreeNode): ResourceTreeNode[] {
-  const actions: ResourceTreeNode[] = []
-
-  const walk = (children?: ResourceTreeNode[]) => {
-    children?.forEach((child) => {
-      if (isActionResourceType(child.type)) {
-        actions.push(child)
-      }
-      if (child.children?.length) {
-        walk(child.children)
-      }
-    })
-  }
-
-  walk(node.children)
-  return actions
-}
-
 let bootstrapPromise: Promise<void> | null = null
 
 export const useAuthStore = defineStore('auth', () => {
@@ -152,14 +121,15 @@ export const useAuthStore = defineStore('auth', () => {
   const resources = ref<ResourceTreeNode[]>([])
   const initialized = ref(false)
 
-  const normalizedResources = computed(() => normalizeResourceTree(resources.value))
+  const hasWildcardPermission = computed(() => permissions.value.includes('*:*:*'))
+  const normalizedResources = computed(() => normalizeResourceTree(resources.value, undefined, hasWildcardPermission.value))
   const displayName = computed(() => mine.value?.user?.nickname || mine.value?.user?.username || '未登录')
-  const sidebarMenus = computed(() => normalizeMenuTree(resources.value))
+  const sidebarMenus = computed(() => normalizeMenuTree(resources.value, undefined, hasWildcardPermission.value))
   const accessiblePaths = computed(() => new Set(collectAccessiblePaths(sidebarMenus.value)))
   const permissionSet = computed(() => {
     const set = collectPermissionSet(normalizedResources.value)
     permissions.value
-      .filter((permission) => permission && permission !== '*:*:*')
+      .filter((permission) => permission)
       .forEach((permission) => set.add(permission))
     return set
   })
@@ -250,46 +220,25 @@ export const useAuthStore = defineStore('auth', () => {
     if (!permission) {
       return true
     }
-    return permissionSet.value.has(permission)
+    return permissionSet.value.has('*:*:*') || permissionSet.value.has(permission)
+  }
+
+  function hasAnyPermission(nextPermissions?: string[]) {
+    const validPermissions = nextPermissions?.filter(Boolean) || []
+    if (validPermissions.length === 0) {
+      return true
+    }
+    return validPermissions.some((permission) => hasPermission(permission))
   }
 
   function canAction(
-    pagePath: string,
+    _pagePath: string,
     options: {
       names?: string[]
       permissions?: string[]
     },
   ) {
-    if (!canAccessPath(pagePath)) {
-      return false
-    }
-
-    const pageNode = findNodeByPath(normalizedResources.value, pagePath)
-    if (!pageNode) {
-      return false
-    }
-
-    const actionNodes = collectDescendantActionNodes(pageNode)
-    const matchedByPermission = options.permissions?.some((permission) => hasPermission(permission))
-    if (matchedByPermission) {
-      return true
-    }
-
-    const matchedByActionNode = actionNodes.some((node) => {
-      if (node.checked !== true) {
-        return false
-      }
-      const matchesName = options.names?.includes(node.name)
-      const matchesPermission = node.permission ? options.permissions?.includes(node.permission) : false
-      return Boolean(matchesName || matchesPermission)
-    })
-
-    if (matchedByActionNode) {
-      return true
-    }
-
-    // 如果该页面下尚未配置按钮级资源，则默认继承页面权限，避免把所有按钮都误隐藏。
-    return actionNodes.length === 0
+    return hasAnyPermission(options.permissions)
   }
 
   return {
@@ -308,6 +257,7 @@ export const useAuthStore = defineStore('auth', () => {
     refreshProfile,
     canAccessPath,
     hasPermission,
+    hasAnyPermission,
     canAction,
     clearAuth,
     logout,

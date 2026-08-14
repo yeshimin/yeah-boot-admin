@@ -2,7 +2,7 @@
   <div class="area-manage-container">
     <div class="action-bar">
       <div class="action-buttons">
-        <el-button type="primary" @click="handleAdd">
+        <el-button v-if="canCreateAnyArea" type="primary" @click="handleAdd">
           <el-icon><Plus /></el-icon>新增
         </el-button>
         <el-button @click="loadAreaTree">
@@ -48,16 +48,30 @@
       <div class="area-detail-panel">
         <div class="detail-header">
           <h3>当前节点</h3>
-          <div class="detail-actions" v-if="currentNode">
-            <el-button size="small" type="primary" @click="handleEdit(currentNode)">编辑</el-button>
+          <div class="detail-actions" v-if="currentNode && hasCurrentNodeActions">
             <el-button
-              v-if="currentNode.level === 1"
+              v-if="canUpdateArea(currentNode.level)"
+              size="small"
+              type="primary"
+              @click="handleEdit(currentNode)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              v-if="currentNode.level === 1 && canCreateChildArea(currentNode)"
               size="small"
               @click="handleAdd(currentNode)"
             >
               新增
             </el-button>
-            <el-button size="small" type="danger" @click="handleDelete(currentNode)">删除</el-button>
+            <el-button
+              v-if="canDeleteArea(currentNode.level)"
+              size="small"
+              type="danger"
+              @click="handleDelete(currentNode)"
+            >
+              删除
+            </el-button>
           </div>
         </div>
 
@@ -102,11 +116,25 @@
           <el-table-column prop="name" label="名称" width="100" show-overflow-tooltip />
           <el-table-column prop="code" label="编码" width="96" show-overflow-tooltip />
           <el-table-column prop="createTime" label="创建时间" width="176" show-overflow-tooltip />
-          <el-table-column label="操作" width="104">
+          <el-table-column v-if="hasChildRowActions" label="操作" width="104">
             <template #default="{ row }">
               <div class="child-row-actions">
-                <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-                <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+                <el-button
+                  v-if="canUpdateArea(row.level)"
+                  link
+                  type="primary"
+                  @click="handleEdit(row)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  v-if="canDeleteArea(row.level)"
+                  link
+                  type="danger"
+                  @click="handleDelete(row)"
+                >
+                  删除
+                </el-button>
               </div>
             </template>
           </el-table-column>
@@ -151,7 +179,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit">确定</el-button>
+          <el-button v-if="canSubmitAreaForm" type="primary" @click="handleSubmit">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -174,17 +202,23 @@ import {
   getCityDetail,
   getDistrictDetail,
   getProvinceDetail,
-  queryCities,
-  queryDistricts,
   updateCity,
   updateDistrict,
   updateProvince,
 } from '@/api/area'
+import { useAuthStore } from '@/stores/auth'
 import type { AreaFormModel, AreaNodeLevel, AreaTreeNode } from '@/types/area'
-import { buildConditions } from '@/utils/query'
 
 type UnknownRecord = Record<string, unknown>
+type AreaCrudAction = 'detail' | 'create' | 'update' | 'delete'
 const ROOT_PARENT_CODE = '__ROOT__'
+const AREA_MODULE_BY_LEVEL: Record<AreaNodeLevel, string> = {
+  1: 'admin:areaProvince',
+  2: 'admin:areaCity',
+  3: 'admin:areaDistrict',
+}
+
+const authStore = useAuthStore()
 
 const treeRef = ref<InstanceType<typeof ElTree>>()
 const formRef = ref<FormInstance>()
@@ -354,11 +388,43 @@ const formTypeLabel = computed(() => {
   return editingLevel.value === 1 ? '省份' : editingLevel.value === 2 ? '城市' : '区县'
 })
 const childEmptyText = computed(() => {
+  if (!canViewAreaTree.value) {
+    return '暂无地区树权限'
+  }
   if (!currentNode.value) {
     return '请先选择左侧地区节点'
   }
+  const childLevel = getChildAreaLevel(currentNode.value)
+  if (!childLevel) {
+    return '当前区县没有下级区域数据'
+  }
   return currentNode.value.level === 1 ? '当前省份没有下级城市数据' : '当前城市没有下级区县数据'
 })
+const canCreateAnyArea = computed(() => (
+  ([1, 2, 3] as AreaNodeLevel[]).some((level) => canCreateArea(level))
+))
+const hasCurrentNodeActions = computed(() => {
+  if (!currentNode.value) {
+    return false
+  }
+  return canUpdateArea(currentNode.value.level)
+    || (currentNode.value.level === 1 && canCreateChildArea(currentNode.value))
+    || canDeleteArea(currentNode.value.level)
+})
+const hasChildRowActions = computed(() => (
+  tableRows.value.some((row) => canUpdateArea(row.level) || canDeleteArea(row.level))
+))
+const canSubmitAreaForm = computed(() => {
+  const submitLevel = resolveFormSubmitLevel()
+  return dialogMode.value === 'create'
+    ? canCreateArea(submitLevel)
+    : canUpdateArea(submitLevel)
+})
+const canViewAreaTree = computed(() => authStore.hasPermission('admin:area:tree'))
+
+function warnNoPermission() {
+  ElMessage.warning('暂无操作权限')
+}
 
 type ParentTreeOption = {
   id: string
@@ -392,10 +458,67 @@ function filterTreeNode(value: string, data: AreaTreeNode) {
   return data.name.includes(value) || (data.code || '').includes(value)
 }
 
+function getAreaCrudPermission(level: AreaNodeLevel, action: AreaCrudAction) {
+  return `${AREA_MODULE_BY_LEVEL[level]}:crud:${action}`
+}
+
+function canViewAreaDetail(level: AreaNodeLevel) {
+  return authStore.hasPermission(getAreaCrudPermission(level, 'detail'))
+}
+
+function canCreateArea(level: AreaNodeLevel) {
+  return authStore.hasPermission(getAreaCrudPermission(level, 'create'))
+}
+
+function canUpdateArea(level: AreaNodeLevel) {
+  return authStore.hasPermission(getAreaCrudPermission(level, 'update'))
+}
+
+function canDeleteArea(level: AreaNodeLevel) {
+  return authStore.hasPermission(getAreaCrudPermission(level, 'delete'))
+}
+
+function canCreateChildArea(node: AreaTreeNode) {
+  const childLevel = getChildAreaLevel(node)
+  return Boolean(childLevel && canCreateArea(childLevel))
+}
+
+function getChildAreaLevel(node: AreaTreeNode): AreaNodeLevel | null {
+  if (node.level === 1) {
+    return 2
+  }
+  if (node.level === 2) {
+    return 3
+  }
+  return null
+}
+
+function resolveCreateAreaLevel(node?: AreaTreeNode): AreaNodeLevel | null {
+  const parentNode = node || currentNode.value
+  return parentNode ? getChildAreaLevel(parentNode) : 1
+}
+
+function resolveFormSubmitLevel(): AreaNodeLevel {
+  const selectedParentNode = form.parentCode && form.parentCode !== ROOT_PARENT_CODE
+    ? findNodeByCode(areaTree.value, form.parentCode)
+    : null
+  return dialogMode.value === 'create'
+    ? (!selectedParentNode ? 1 : selectedParentNode.level === 1 ? 2 : 3)
+    : editingLevel.value
+}
+
 async function loadAreaTree() {
   treeLoading.value = true
   try {
-    const response = await getAreaTree(2)
+    if (!canViewAreaTree.value) {
+      areaTree.value = []
+      currentNode.value = null
+      currentNodeDetail.value = null
+      tableRows.value = []
+      return
+    }
+
+    const response = await getAreaTree(3)
     areaTree.value = normalizeAreaTree(response.data || [])
     if (!currentNode.value && areaTree.value.length) {
       currentNode.value = areaTree.value[0] || null
@@ -428,6 +551,15 @@ function handleNodeClick(node: AreaTreeNode) {
 }
 
 function handleAdd(node?: AreaTreeNode) {
+  const targetLevel = resolveCreateAreaLevel(node)
+  if (!targetLevel) {
+    ElMessage.warning('当前节点不支持新增下级区域')
+    return
+  }
+  if (!canCreateArea(targetLevel)) {
+    warnNoPermission()
+    return
+  }
   resetForm()
   dialogMode.value = 'create'
   editingLevel.value = 1
@@ -448,40 +580,31 @@ function normalizeAreaDetail(detail: Record<string, unknown>, level: AreaNodeLev
 }
 
 async function fetchCurrentNodeDetail(node: AreaTreeNode) {
+  if (!canViewAreaDetail(node.level)) {
+    return node
+  }
+
   if (node.level === 1) {
     const response = await getProvinceDetail(node.id)
     return normalizeAreaDetail(response.data, 1)
   }
 
-  const response = await getCityDetail(node.id)
-  return normalizeAreaDetail(response.data, 2)
+  if (node.level === 2) {
+    const response = await getCityDetail(node.id)
+    return normalizeAreaDetail(response.data, 2)
+  }
+
+  const response = await getDistrictDetail(node.id)
+  return normalizeAreaDetail(response.data, 3)
 }
 
-async function fetchChildRows(node: AreaTreeNode, parentCode?: string) {
-  const code = parentCode || node.code
-  if (!code) {
+async function fetchChildRows(node: AreaTreeNode) {
+  const childLevel = getChildAreaLevel(node)
+  if (!childLevel) {
     return []
   }
 
-  if (node.level === 1) {
-    const response = await queryCities({
-      current: 1,
-      size: 1000,
-      conditions_: buildConditions([
-        { field: 'parentCode', operator: 'eq', value: code },
-      ]),
-    })
-    return normalizeAreaListRows(response.data.records || [], 2, node.id)
-  }
-
-  const response = await queryDistricts({
-    current: 1,
-    size: 1000,
-    conditions_: buildConditions([
-      { field: 'parentCode', operator: 'eq', value: code },
-    ]),
-  })
-  return normalizeAreaListRows(response.data.records || [], 3, node.id)
+  return normalizeAreaListRows(node.children || [], childLevel, node.id)
 }
 
 async function loadCurrentNodeContext(node: AreaTreeNode) {
@@ -499,7 +622,7 @@ async function loadCurrentNodeContext(node: AreaTreeNode) {
   currentNodeDetail.value = detailNode
   detailLoading.value = false
 
-  const childResult = await Promise.allSettled([fetchChildRows(node, detailNode.code)])
+  const childResult = await Promise.allSettled([fetchChildRows(node)])
 
   if (requestId !== currentContextRequestId) {
     return
@@ -510,6 +633,10 @@ async function loadCurrentNodeContext(node: AreaTreeNode) {
 }
 
 async function handleEdit(node: AreaTreeNode) {
+  if (!canUpdateArea(node.level)) {
+    warnNoPermission()
+    return
+  }
   resetForm()
   dialogMode.value = 'edit'
   editingLevel.value = node.level
@@ -532,6 +659,10 @@ async function handleEdit(node: AreaTreeNode) {
 }
 
 async function handleDelete(node: AreaTreeNode) {
+  if (!canDeleteArea(node.level)) {
+    warnNoPermission()
+    return
+  }
   ElMessageBox.confirm(`确定要删除该${node.level === 1 ? '省份' : node.level === 2 ? '城市' : '区县'}吗？`, '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
@@ -560,6 +691,10 @@ async function handleDelete(node: AreaTreeNode) {
 }
 
 async function handleSubmit() {
+  if (!canSubmitAreaForm.value) {
+    warnNoPermission()
+    return
+  }
   if (!formRef.value) {
     return
   }
@@ -567,12 +702,7 @@ async function handleSubmit() {
   try {
     await formRef.value.validate()
 
-    const selectedParentNode = form.parentCode && form.parentCode !== ROOT_PARENT_CODE
-      ? findNodeByCode(areaTree.value, form.parentCode)
-      : null
-    const submitLevel = dialogMode.value === 'create'
-      ? (!selectedParentNode ? 1 : selectedParentNode.level === 1 ? 2 : 3)
-      : editingLevel.value
+    const submitLevel = resolveFormSubmitLevel()
 
     if (submitLevel === 1) {
       const payload = {

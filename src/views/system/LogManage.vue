@@ -56,7 +56,7 @@
       <el-table-column prop="output" label="输出" min-width="220" show-overflow-tooltip></el-table-column>
       <el-table-column prop="extra" label="额外信息" min-width="180" show-overflow-tooltip></el-table-column>
       <el-table-column prop="createTime" label="时间" min-width="180"></el-table-column>
-      <el-table-column label="操作" width="90" fixed="right">
+      <el-table-column v-if="canViewLogDetail" label="操作" width="90" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDetail(row)">详情</el-button>
         </template>
@@ -101,11 +101,14 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { queryLogs } from '@/api/upms'
+import { useAuthStore } from '@/stores/auth'
 import type { SysLogEntity } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
 
+const authStore = useAuthStore()
 const tableLoading = ref(false)
 const logList = ref<SysLogEntity[]>([])
 const detailVisible = ref(false)
@@ -135,6 +138,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   '3': '定时任务',
   '4': '上传下载',
 }
+
+const canViewLogDetail = computed(() => authStore.hasPermission('admin:sysLog:crud:detail'))
 
 async function getLogList() {
   tableLoading.value = true
@@ -191,6 +196,10 @@ function getCategoryLabel(value?: string) {
 }
 
 function openDetail(log: SysLogEntity) {
+  if (!canViewLogDetail.value) {
+    ElMessage.warning('暂无操作权限')
+    return
+  }
   currentLog.value = log
   detailVisible.value = true
 }

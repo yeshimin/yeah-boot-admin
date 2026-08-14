@@ -21,7 +21,7 @@
     <div class="action-bar">
       <div class="action-buttons">
         <el-button
-          v-if="authStore.canAction('/system/position', { names: ['新增岗位', '新增'], permissions: ['admin:sysPost:create', 'admin:sysPost:crud:create'] })"
+            v-if="canCreatePosition"
           type="primary"
           @click="handleAddPosition"
         >
@@ -54,21 +54,16 @@
               v-model="scope.row.status"
               active-value="1"
               inactive-value="2"
-              :disabled="
-                !authStore.canAction('/system/position', {
-                  names: ['编辑岗位', '编辑'],
-                  permissions: ['admin:sysPost:update', 'admin:sysPost:crud:update'],
-                })
-              "
+              :disabled="!canUpdatePosition"
               @change="handleStatusChange(scope.row)"
             ></el-switch>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="160"></el-table-column>
-        <el-table-column label="操作" min-width="180" fixed="right">
+        <el-table-column v-if="hasPositionRowActions" label="操作" min-width="180" fixed="right">
           <template #default="scope">
             <el-button
-              v-if="authStore.canAction('/system/position', { names: ['编辑岗位', '编辑'], permissions: ['admin:sysPost:update', 'admin:sysPost:crud:update'] })"
+              v-if="canUpdatePosition"
               type="primary"
               size="small"
               @click="handleEditPosition(scope.row)"
@@ -76,7 +71,7 @@
               编辑
             </el-button>
             <el-button
-              v-if="authStore.canAction('/system/position', { names: ['删除岗位', '删除'], permissions: ['admin:sysPost:delete', 'admin:sysPost:crud:delete'] })"
+              v-if="canDeletePosition"
               type="danger"
               size="small"
               @click="handleDeletePosition(scope.row)"
@@ -137,7 +132,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmitPosition">确定</el-button>
+          <el-button v-if="canSubmitPositionForm" type="primary" @click="handleSubmitPosition">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -145,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -154,6 +149,9 @@ import { createPost, deletePosts, getPostDetail, queryPosts, updatePost } from '
 import { buildConditions } from '@/utils/query'
 
 const authStore = useAuthStore()
+const canCreatePosition = computed(() => authStore.hasPermission('admin:sysPost:create'))
+const canUpdatePosition = computed(() => authStore.hasPermission('admin:sysPost:update'))
+const canDeletePosition = computed(() => authStore.hasPermission('admin:sysPost:delete'))
 
 // 表格加载状态
 const tableLoading = ref(false)
@@ -194,6 +192,14 @@ const positionForm = reactive({
   remark: '',
   createTime: ''
 })
+const canSubmitPositionForm = computed(() => (
+  positionForm.id ? canUpdatePosition.value : canCreatePosition.value
+))
+const hasPositionRowActions = computed(() => canUpdatePosition.value || canDeletePosition.value)
+
+function warnNoPermission() {
+  ElMessage.warning('暂无操作权限')
+}
 
 // 岗位表单验证规则
 const positionRules = reactive<FormRules>({
@@ -270,6 +276,10 @@ const handleSelectionChange = (selection: any[]) => {
 
 // 新增岗位
 const handleAddPosition = () => {
+  if (!canCreatePosition.value) {
+    warnNoPermission()
+    return
+  }
   dialogTitle.value = '新增岗位'
   resetPositionForm()
   dialogVisible.value = true
@@ -277,6 +287,10 @@ const handleAddPosition = () => {
 
 // 编辑岗位
 const handleEditPosition = async (row: any) => {
+  if (!canUpdatePosition.value) {
+    warnNoPermission()
+    return
+  }
   dialogTitle.value = '编辑岗位'
   const response = await getPostDetail(row.id)
   Object.assign(positionForm, {
@@ -293,6 +307,10 @@ const handleEditPosition = async (row: any) => {
 
 // 删除岗位
 const handleDeletePosition = async (row: any) => {
+  if (!canDeletePosition.value) {
+    warnNoPermission()
+    return
+  }
   ElMessageBox.confirm('确定要删除该岗位吗？', '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
@@ -310,6 +328,11 @@ const handleDeletePosition = async (row: any) => {
 const handleStatusChange = async (row: any) => {
   const nextStatus = row.status
   const previousStatus = nextStatus === '1' ? '2' : '1'
+  if (!canUpdatePosition.value) {
+    row.status = previousStatus
+    warnNoPermission()
+    return
+  }
   try {
     await updatePost({
       id: row.id,
@@ -323,6 +346,10 @@ const handleStatusChange = async (row: any) => {
 
 // 提交岗位表单
 const handleSubmitPosition = async () => {
+  if (!canSubmitPositionForm.value) {
+    warnNoPermission()
+    return
+  }
   if (!positionFormRef.value) return
   try {
     await positionFormRef.value.validate()

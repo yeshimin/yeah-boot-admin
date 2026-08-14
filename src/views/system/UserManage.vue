@@ -61,7 +61,7 @@
         <div class="action-bar">
           <div class="action-buttons">
             <el-button
-              v-if="authStore.canAction('/system/user', { names: ['新增用户', '新增'], permissions: ['admin:sysUser:create', 'admin:sysUser:crud:create'] })"
+            v-if="canCreateUser"
               type="primary"
               @click="handleAddUser"
             >
@@ -91,24 +91,24 @@
                   v-model="scope.row.status"
                   active-value="1"
                   inactive-value="2"
-                  :disabled="
-                    !authStore.canAction('/system/user', {
-                      names: ['编辑用户', '编辑'],
-                      permissions: ['admin:sysUser:update', 'admin:sysUser:crud:update'],
-                    })
-                  "
+              :disabled="!canUpdateUser"
                   @change="handleStatusChange(scope.row)"
                 ></el-switch>
               </template>
             </el-table-column>
             <el-table-column prop="createTime" label="创建时间" min-width="160"></el-table-column>
-            <el-table-column label="操作" min-width="240" fixed="right">
+        <el-table-column v-if="hasUserRowActions" label="操作" min-width="240" fixed="right">
               <template #default="scope">
-                <el-button type="info" size="small" @click="handleViewUser(scope.row)">
+                <el-button
+              v-if="canViewUserDetail"
+                  type="info"
+                  size="small"
+                  @click="handleViewUser(scope.row)"
+                >
                   详情
                 </el-button>
                 <el-button
-                  v-if="authStore.canAction('/system/user', { names: ['编辑用户', '编辑'], permissions: ['admin:sysUser:update', 'admin:sysUser:crud:update'] })"
+              v-if="canUpdateUser"
                   type="primary"
                   size="small"
                   @click="handleEditUser(scope.row)"
@@ -116,7 +116,7 @@
                   编辑
                 </el-button>
                 <el-button
-                  v-if="authStore.canAction('/system/user', { names: ['重置密码'], permissions: ['admin:sysUser:resetPwd'] })"
+              v-if="canUpdateUser"
                   type="success"
                   size="small"
                   @click="handleResetPassword(scope.row)"
@@ -124,7 +124,7 @@
                   重置密码
                 </el-button>
                 <el-button
-                  v-if="authStore.canAction('/system/user', { names: ['删除用户', '删除'], permissions: ['admin:sysUser:delete', 'admin:sysUser:crud:delete'] })"
+              v-if="canDeleteUser"
                   type="danger"
                   size="small"
                   @click="handleDeleteUser(scope.row)"
@@ -229,7 +229,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmitUser">确定</el-button>
+          <el-button v-if="canSubmitUserForm" type="primary" @click="handleSubmitUser">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -271,7 +271,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import type { ElTree } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -291,6 +291,10 @@ import type { SysOrgTreeNode, SysUserVo } from '@/types/upms'
 import { sha256Hex } from '@/utils/crypto'
 
 const authStore = useAuthStore()
+const canCreateUser = computed(() => authStore.hasPermission('admin:sysUser:create'))
+const canViewUserDetail = computed(() => authStore.hasPermission('admin:sysUser:detail'))
+const canUpdateUser = computed(() => authStore.hasPermission('admin:sysUser:update'))
+const canDeleteUser = computed(() => authStore.hasPermission('admin:sysUser:delete'))
 
 // 表格加载状态
 const tableLoading = ref(false)
@@ -354,6 +358,14 @@ const createDefaultUserForm = () => ({
 
 // 用户表单数据
 const userForm = reactive(createDefaultUserForm())
+const canSubmitUserForm = computed(() => (userForm.id ? canUpdateUser.value : canCreateUser.value))
+const hasUserRowActions = computed(() => (
+  canViewUserDetail.value || canUpdateUser.value || canDeleteUser.value
+))
+
+function warnNoPermission() {
+  ElMessage.warning('暂无操作权限')
+}
 
 // 用户表单验证规则
 const userRules = reactive<FormRules>({
@@ -503,12 +515,20 @@ const handleSelectionChange = (selection: any[]) => {
 
 // 新增用户
 const handleAddUser = () => {
+  if (!canCreateUser.value) {
+    warnNoPermission()
+    return
+  }
   dialogTitle.value = '新增用户'
   resetUserForm()
   dialogVisible.value = true
 }
 
 const handleViewUser = async (row: any) => {
+  if (!canViewUserDetail.value) {
+    warnNoPermission()
+    return
+  }
   const response = await getUserDetail(row.id)
   currentUserDetail.value = response.data
   detailVisible.value = true
@@ -516,6 +536,10 @@ const handleViewUser = async (row: any) => {
 
 // 编辑用户
 const handleEditUser = async (row: any) => {
+  if (!canUpdateUser.value) {
+    warnNoPermission()
+    return
+  }
   dialogTitle.value = '编辑用户'
   const response = await getUserDetail(row.id)
   const detail = response.data
@@ -539,6 +563,10 @@ const handleEditUser = async (row: any) => {
 
 // 删除用户
 const handleDeleteUser = async (row: any) => {
+  if (!canDeleteUser.value) {
+    warnNoPermission()
+    return
+  }
   ElMessageBox.confirm('确定要删除该用户吗？', '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
@@ -556,6 +584,11 @@ const handleDeleteUser = async (row: any) => {
 const handleStatusChange = async (row: any) => {
   const nextStatus = row.status
   const previousStatus = nextStatus === '1' ? '2' : '1'
+  if (!canUpdateUser.value) {
+    row.status = previousStatus
+    warnNoPermission()
+    return
+  }
   try {
     await updateUser({
       id: row.id,
@@ -569,6 +602,10 @@ const handleStatusChange = async (row: any) => {
 
 // 重置密码
 const handleResetPassword = async (row: any) => {
+  if (!canUpdateUser.value) {
+    warnNoPermission()
+    return
+  }
   ElMessageBox.prompt('请输入新密码，至少 6 位', '重置密码', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
@@ -589,6 +626,10 @@ const handleResetPassword = async (row: any) => {
 
 // 提交用户表单
 const handleSubmitUser = async () => {
+  if (!canSubmitUserForm.value) {
+    warnNoPermission()
+    return
+  }
   if (!userFormRef.value) return
   try {
     await userFormRef.value.validate()

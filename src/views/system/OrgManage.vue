@@ -21,7 +21,7 @@
     <div class="action-bar">
       <div class="action-buttons">
         <el-button
-          v-if="authStore.canAction('/system/org', { names: ['新增组织', '新增'], permissions: ['admin:sysOrg:create', 'admin:sysOrg:crud:create'] })"
+            v-if="canCreateOrg"
           type="primary"
           @click="handleAddRoot"
         >
@@ -51,34 +51,29 @@
               v-model="row.status"
               active-value="1"
               inactive-value="2"
-              :disabled="
-                !authStore.canAction('/system/org', {
-                  names: ['编辑组织', '编辑'],
-                  permissions: ['admin:sysOrg:update', 'admin:sysOrg:crud:update'],
-                })
-              "
+              :disabled="!canUpdateOrg"
               @change="handleStatusChange(row)"
             ></el-switch>
           </template>
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip></el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="180"></el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column v-if="hasOrgRowActions" label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button
-              v-if="authStore.canAction('/system/org', { names: ['新增组织', '新增'], permissions: ['admin:sysOrg:create', 'admin:sysOrg:crud:create'] })"
+              v-if="canCreateOrg"
               link
               type="primary"
               @click="handleAddChild(row)"
             >新增</el-button>
             <el-button
-              v-if="authStore.canAction('/system/org', { names: ['编辑组织', '编辑'], permissions: ['admin:sysOrg:update', 'admin:sysOrg:crud:update'] })"
+              v-if="canUpdateOrg"
               link
               type="primary"
               @click="handleEdit(row)"
             >编辑</el-button>
             <el-button
-              v-if="authStore.canAction('/system/org', { names: ['删除组织', '删除'], permissions: ['admin:sysOrg:delete', 'admin:sysOrg:crud:delete'] })"
+              v-if="canDeleteOrg"
               link
               type="danger"
               @click="handleDelete(row)"
@@ -132,7 +127,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit">确定</el-button>
+          <el-button v-if="canSubmitOrgForm" type="primary" @click="handleSubmit">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -140,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, reactive, ref } from 'vue'
+import { computed, nextTick, reactive, ref } from 'vue'
 import { Plus, Sort } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -149,6 +144,9 @@ import { createOrg, deleteOrgs, getOrgDetail, getOrgTree, updateOrg } from '@/ap
 import type { SysOrgTreeNode } from '@/types/upms'
 
 const authStore = useAuthStore()
+const canCreateOrg = computed(() => authStore.hasPermission('admin:sysOrg:create'))
+const canUpdateOrg = computed(() => authStore.hasPermission('admin:sysOrg:update'))
+const canDeleteOrg = computed(() => authStore.hasPermission('admin:sysOrg:delete'))
 const formRef = ref<FormInstance>()
 const tableLoading = ref(false)
 const orgList = ref<SysOrgTreeNode[]>([])
@@ -173,6 +171,12 @@ const createDefaultForm = () => ({
 })
 
 const form = reactive(createDefaultForm())
+const canSubmitOrgForm = computed(() => (form.id ? canUpdateOrg.value : canCreateOrg.value))
+const hasOrgRowActions = computed(() => canCreateOrg.value || canUpdateOrg.value || canDeleteOrg.value)
+
+function warnNoPermission() {
+  ElMessage.warning('暂无操作权限')
+}
 
 const formRules = reactive<FormRules>({
   name: [
@@ -208,12 +212,20 @@ function resetForm() {
 }
 
 function handleAddRoot() {
+  if (!canCreateOrg.value) {
+    warnNoPermission()
+    return
+  }
   resetForm()
   dialogTitle.value = '新增组织'
   dialogVisible.value = true
 }
 
 function handleAddChild(row?: SysOrgTreeNode) {
+  if (!canCreateOrg.value) {
+    warnNoPermission()
+    return
+  }
   resetForm()
   form.parentId = row?.id || 0
   dialogTitle.value = '新增下级组织'
@@ -221,6 +233,10 @@ function handleAddChild(row?: SysOrgTreeNode) {
 }
 
 async function handleEdit(row: SysOrgTreeNode) {
+  if (!canUpdateOrg.value) {
+    warnNoPermission()
+    return
+  }
   resetForm()
   const response = await getOrgDetail(row.id)
   Object.assign(form, {
@@ -236,6 +252,10 @@ async function handleEdit(row: SysOrgTreeNode) {
 }
 
 async function handleDelete(row: SysOrgTreeNode) {
+  if (!canDeleteOrg.value) {
+    warnNoPermission()
+    return
+  }
   ElMessageBox.confirm('确定要删除该组织吗？删除后该组织下的所有子组织也将被删除', '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
@@ -252,6 +272,11 @@ async function handleDelete(row: SysOrgTreeNode) {
 async function handleStatusChange(row: SysOrgTreeNode) {
   const nextStatus = row.status
   const previousStatus = nextStatus === '1' ? '2' : '1'
+  if (!canUpdateOrg.value) {
+    row.status = previousStatus
+    warnNoPermission()
+    return
+  }
   try {
     await updateOrg({
       id: row.id,
@@ -264,6 +289,10 @@ async function handleStatusChange(row: SysOrgTreeNode) {
 }
 
 async function handleSubmit() {
+  if (!canSubmitOrgForm.value) {
+    warnNoPermission()
+    return
+  }
   if (!formRef.value) {
     return
   }

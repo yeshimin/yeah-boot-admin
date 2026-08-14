@@ -27,7 +27,7 @@
 
     <div class="action-bar">
       <div class="action-buttons">
-        <el-button type="primary" @click="dialogVisible = true">
+        <el-button v-if="canUploadFile" type="primary" @click="openUploadDialog">
           <el-icon><Upload /></el-icon>上传文件
         </el-button>
         <el-button @click="getFileList">
@@ -56,11 +56,32 @@
         <el-table-column prop="bucket" label="Bucket" min-width="120" show-overflow-tooltip />
         <el-table-column prop="path" label="路径" min-width="120" show-overflow-tooltip />
         <el-table-column prop="createTime" label="创建时间" width="176" show-overflow-tooltip />
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column v-if="hasFileRowActions" label="操作" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleViewDetail(row)">详情</el-button>
-            <el-button link type="primary" @click="handleDownload(row)">下载</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button
+              v-if="canViewFileDetail"
+              link
+              type="primary"
+              @click="handleViewDetail(row)"
+            >
+              详情
+            </el-button>
+            <el-button
+              v-if="canDownloadFile"
+              link
+              type="primary"
+              @click="handleDownload(row)"
+            >
+              下载
+            </el-button>
+            <el-button
+              v-if="canDeleteFile"
+              link
+              type="danger"
+              @click="handleDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -111,7 +132,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="uploading" @click="handleUpload">上传</el-button>
+          <el-button v-if="canUploadFile" type="primary" :loading="uploading" @click="handleUpload">上传</el-button>
         </span>
       </template>
     </el-dialog>
@@ -138,16 +159,18 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { Refresh, Upload } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { deleteFile, downloadFile, getFileDetail, queryFiles, uploadFile } from '@/api/file'
+import { useAuthStore } from '@/stores/auth'
 import type { ManagedFileRecord, FileUploadFormModel } from '@/types/file'
 import { buildConditions } from '@/utils/query'
 
 type UnknownRecord = Record<string, unknown>
 
+const authStore = useAuthStore()
 const uploadFormRef = ref<FormInstance>()
 const fileInputRef = ref<HTMLInputElement>()
 const tableLoading = ref(false)
@@ -184,6 +207,18 @@ const uploadRules = reactive<FormRules>({
     { required: true, message: '请输入存储类型', trigger: 'blur' },
   ],
 })
+
+const canUploadFile = computed(() => authStore.hasPermission('basic:file:upload'))
+const canViewFileDetail = computed(() => authStore.hasPermission('basic:file:crud:detail'))
+const canDownloadFile = computed(() => authStore.hasPermission('basic:file:download'))
+const canDeleteFile = computed(() => authStore.hasPermission('basic:file:delete'))
+const hasFileRowActions = computed(() => (
+  canViewFileDetail.value || canDownloadFile.value || canDeleteFile.value
+))
+
+function warnNoPermission() {
+  ElMessage.warning('暂无操作权限')
+}
 
 function toNumber(...values: unknown[]) {
   for (const value of values) {
@@ -292,7 +327,19 @@ async function handleCurrentChange(page: number) {
 }
 
 function triggerFileSelect() {
+  if (!canUploadFile.value) {
+    warnNoPermission()
+    return
+  }
   fileInputRef.value?.click()
+}
+
+function openUploadDialog() {
+  if (!canUploadFile.value) {
+    warnNoPermission()
+    return
+  }
+  dialogVisible.value = true
 }
 
 function handleFileChange(event: Event) {
@@ -312,6 +359,10 @@ function handleDialogClose() {
 }
 
 async function handleUpload() {
+  if (!canUploadFile.value) {
+    warnNoPermission()
+    return
+  }
   if (!uploadFormRef.value) {
     return
   }
@@ -338,12 +389,20 @@ async function handleUpload() {
 }
 
 async function handleViewDetail(row: ManagedFileRecord) {
+  if (!canViewFileDetail.value) {
+    warnNoPermission()
+    return
+  }
   const response = await getFileDetail(row.id)
   currentDetail.value = normalizeFileRecord(response.data)
   detailVisible.value = true
 }
 
 async function handleDownload(row: ManagedFileRecord) {
+  if (!canDownloadFile.value) {
+    warnNoPermission()
+    return
+  }
   if (!row.fileKey) {
     ElMessage.warning('当前文件缺少 fileKey，无法下载')
     return
@@ -365,6 +424,10 @@ async function handleDownload(row: ManagedFileRecord) {
 }
 
 async function handleDelete(row: ManagedFileRecord) {
+  if (!canDeleteFile.value) {
+    warnNoPermission()
+    return
+  }
   if (!row.fileKey) {
     ElMessage.warning('当前文件缺少 fileKey，无法删除')
     return

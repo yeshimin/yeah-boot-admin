@@ -21,7 +21,7 @@
     <div class="action-bar">
       <div class="action-buttons">
         <el-button
-          v-if="authStore.canAction('/system/role', { names: ['新增角色', '新增'], permissions: ['admin:sysRole:create', 'admin:sysRole:crud:create'] })"
+            v-if="canCreateRole"
           type="primary"
           @click="handleAddRole"
         >
@@ -48,21 +48,16 @@
               v-model="scope.row.status"
               active-value="1"
               inactive-value="2"
-              :disabled="
-                !authStore.canAction('/system/role', {
-                  names: ['编辑角色', '编辑'],
-                  permissions: ['admin:sysRole:update', 'admin:sysRole:crud:update'],
-                })
-              "
+              :disabled="!canUpdateRole"
               @change="handleStatusChange(scope.row)"
             ></el-switch>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="160"></el-table-column>
-        <el-table-column label="操作" min-width="180" fixed="right">
+        <el-table-column v-if="hasRoleRowActions" label="操作" min-width="180" fixed="right">
           <template #default="scope">
             <el-button
-              v-if="authStore.canAction('/system/role', { names: ['编辑角色', '编辑'], permissions: ['admin:sysRole:update', 'admin:sysRole:crud:update'] })"
+              v-if="canUpdateRole"
               type="primary"
               size="small"
               @click="handleEditRole(scope.row)"
@@ -70,7 +65,7 @@
               编辑
             </el-button>
             <el-button
-              v-if="authStore.canAction('/system/role', { names: ['分配权限'], permissions: ['admin:sysRole:setResources'] })"
+              v-if="canAssignRoleResources"
               type="success"
               size="small"
               @click="handleAssignPermission(scope.row)"
@@ -78,7 +73,7 @@
               分配权限
             </el-button>
             <el-button
-              v-if="authStore.canAction('/system/role', { names: ['删除角色', '删除'], permissions: ['admin:sysRole:delete', 'admin:sysRole:crud:delete'] })"
+              v-if="canDeleteRole"
               type="danger"
               size="small"
               @click="handleDeleteRole(scope.row)"
@@ -136,7 +131,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmitRole">确定</el-button>
+          <el-button v-if="canSubmitRoleForm" type="primary" @click="handleSubmitRole">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -162,7 +157,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="permissionDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmitPermission">确定</el-button>
+          <el-button v-if="canAssignRoleResources" type="primary" @click="handleSubmitPermission">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -170,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, reactive, onMounted } from 'vue'
+import { computed, nextTick, ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -188,6 +183,13 @@ import type { ResourceTreeNode } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
 
 const authStore = useAuthStore()
+const canCreateRole = computed(() => authStore.hasPermission('admin:sysRole:create'))
+const canUpdateRole = computed(() => authStore.hasPermission('admin:sysRole:update'))
+const canDeleteRole = computed(() => authStore.hasPermission('admin:sysRole:delete'))
+const canAssignRoleResources = computed(() => (
+  authStore.hasPermission('admin:sysRole:queryResourceTree')
+  && authStore.hasPermission('admin:sysRole:setResources')
+))
 
 // 表格加载状态
 const tableLoading = ref(false)
@@ -228,6 +230,14 @@ const roleForm = reactive({
   permissions: [] as number[],
   createTime: ''
 })
+const canSubmitRoleForm = computed(() => (roleForm.id ? canUpdateRole.value : canCreateRole.value))
+const hasRoleRowActions = computed(() => (
+  canUpdateRole.value || canAssignRoleResources.value || canDeleteRole.value
+))
+
+function warnNoPermission() {
+  ElMessage.warning('暂无操作权限')
+}
 
 // 角色表单验证规则
 const roleRules = reactive<FormRules>({
@@ -322,6 +332,10 @@ const handleSelectionChange = (selection: any[]) => {
 
 // 新增角色
 const handleAddRole = () => {
+  if (!canCreateRole.value) {
+    warnNoPermission()
+    return
+  }
   dialogTitle.value = '新增角色'
   resetRoleForm()
   dialogVisible.value = true
@@ -329,6 +343,10 @@ const handleAddRole = () => {
 
 // 编辑角色
 const handleEditRole = async (row: any) => {
+  if (!canUpdateRole.value) {
+    warnNoPermission()
+    return
+  }
   dialogTitle.value = '编辑角色'
   const response = await getRoleDetail(row.id)
   Object.assign(roleForm, {
@@ -345,6 +363,10 @@ const handleEditRole = async (row: any) => {
 
 // 删除角色
 const handleDeleteRole = async (row: any) => {
+  if (!canDeleteRole.value) {
+    warnNoPermission()
+    return
+  }
   ElMessageBox.confirm('确定要删除该角色吗？', '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
@@ -362,6 +384,11 @@ const handleDeleteRole = async (row: any) => {
 const handleStatusChange = async (row: any) => {
   const nextStatus = row.status
   const previousStatus = nextStatus === '1' ? '2' : '1'
+  if (!canUpdateRole.value) {
+    row.status = previousStatus
+    warnNoPermission()
+    return
+  }
   try {
     await updateRole({
       id: row.id,
@@ -401,6 +428,10 @@ function collectDisplayCheckedIds(nodes: ResourceTreeNode[]): number[] {
 }
 
 const handleAssignPermission = async (row: any) => {
+  if (!canAssignRoleResources.value) {
+    warnNoPermission()
+    return
+  }
   currentRole.value = row
   const response = await queryRoleResourceTree(row.id)
   permissionTree.value = response.data
@@ -412,6 +443,10 @@ const handleAssignPermission = async (row: any) => {
 
 // 提交角色表单
 const handleSubmitRole = async () => {
+  if (!canSubmitRoleForm.value) {
+    warnNoPermission()
+    return
+  }
   if (!roleFormRef.value) return
   try {
     await roleFormRef.value.validate()
@@ -439,6 +474,10 @@ const handleSubmitRole = async () => {
 
 // 提交权限分配
 const handleSubmitPermission = async () => {
+  if (!canAssignRoleResources.value) {
+    warnNoPermission()
+    return
+  }
   if (!currentRole.value) return
 
   const checkedKeys = permissionTreeRef.value.getCheckedKeys() as number[]

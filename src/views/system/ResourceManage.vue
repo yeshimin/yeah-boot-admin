@@ -29,7 +29,7 @@
     <div class="action-bar">
       <div class="action-buttons">
         <el-button
-          v-if="authStore.canAction('/system/resource', { names: ['新增资源', '新增菜单', '新增'], permissions: ['admin:sysRes:create', 'admin:sysRes:crud:create'] })"
+            v-if="canCreateResource"
           type="primary"
           @click="handleAddResource"
         >
@@ -62,23 +62,18 @@
         <el-table-column prop="status" label="状态" min-width="80">
           <template #default="scope">
             <el-switch
-              v-model="scope.row.status"
-              active-value="1"
-              inactive-value="2"
-              :disabled="
-                !authStore.canAction('/system/resource', {
-                  names: ['编辑资源', '编辑菜单', '编辑'],
-                  permissions: ['admin:sysRes:update', 'admin:sysRes:crud:update'],
-                })
-              "
-              @change="handleStatusChange(scope.row)"
-            ></el-switch>
+                v-model="scope.row.status"
+                active-value="1"
+                inactive-value="2"
+              :disabled="!canUpdateResource"
+                @change="handleStatusChange(scope.row)"
+              ></el-switch>
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="120" fixed="right">
+        <el-table-column v-if="hasResourceRowActions" label="操作" min-width="120" fixed="right">
           <template #default="scope">
             <el-button
-              v-if="authStore.canAction('/system/resource', { names: ['编辑资源', '编辑菜单', '编辑'], permissions: ['admin:sysRes:update', 'admin:sysRes:crud:update'] })"
+              v-if="canUpdateResource"
               type="primary"
               size="small"
               @click="handleEditResource(scope.row)"
@@ -86,7 +81,7 @@
               编辑
             </el-button>
             <el-button
-              v-if="authStore.canAction('/system/resource', { names: ['删除资源', '删除菜单', '删除'], permissions: ['admin:sysRes:delete', 'admin:sysRes:crud:delete'] })"
+              v-if="canDeleteResource"
               type="danger"
               size="small"
               @click="handleDeleteResource(scope.row)"
@@ -184,7 +179,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmitResource">确定</el-button>
+          <el-button v-if="canSubmitResourceForm" type="primary" @click="handleSubmitResource">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -192,7 +187,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { Plus, Grid } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -209,6 +204,9 @@ import type { ResourceTreeNode } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
 
 const authStore = useAuthStore()
+const canCreateResource = computed(() => authStore.hasPermission('admin:sysRes:create'))
+const canUpdateResource = computed(() => authStore.hasPermission('admin:sysRes:update'))
+const canDeleteResource = computed(() => authStore.hasPermission('admin:sysRes:delete'))
 const availableIcons = [
   'Setting',
   'User',
@@ -267,6 +265,12 @@ const resourceForm = reactive({
   status: '1',
   remark: '',
 })
+const canSubmitResourceForm = computed(() => (resourceForm.id ? canUpdateResource.value : canCreateResource.value))
+const hasResourceRowActions = computed(() => canUpdateResource.value || canDeleteResource.value)
+
+function warnNoPermission() {
+  ElMessage.warning('暂无操作权限')
+}
 
 // 资源表单验证规则
 const resourceRules = reactive<FormRules>({
@@ -344,6 +348,10 @@ const handleReset = async () => {
 
 // 新增资源
 const handleAddResource = () => {
+  if (!canCreateResource.value) {
+    warnNoPermission()
+    return
+  }
   dialogTitle.value = '新增菜单'
   resetResourceForm()
   resourceForm.parentId = 0
@@ -352,6 +360,10 @@ const handleAddResource = () => {
 
 // 编辑资源
 const handleEditResource = async (row: any) => {
+  if (!canUpdateResource.value) {
+    warnNoPermission()
+    return
+  }
   dialogTitle.value = '编辑菜单'
   const response = await getResourceDetail(row.id)
   Object.assign(resourceForm, {
@@ -375,6 +387,10 @@ const handleEditResource = async (row: any) => {
 
 // 删除资源
 const handleDeleteResource = async (row: any) => {
+  if (!canDeleteResource.value) {
+    warnNoPermission()
+    return
+  }
   ElMessageBox.confirm('确定要删除该资源吗？', '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
@@ -392,6 +408,11 @@ const handleDeleteResource = async (row: any) => {
 const handleStatusChange = async (row: any) => {
   const nextStatus = row.status
   const previousStatus = nextStatus === '1' ? '2' : '1'
+  if (!canUpdateResource.value) {
+    row.status = previousStatus
+    warnNoPermission()
+    return
+  }
   try {
     await updateResource({
       id: row.id,
@@ -405,6 +426,10 @@ const handleStatusChange = async (row: any) => {
 
 // 提交资源表单
 const handleSubmitResource = async () => {
+  if (!canSubmitResourceForm.value) {
+    warnNoPermission()
+    return
+  }
   if (!resourceFormRef.value) return
   try {
     await resourceFormRef.value.validate()
