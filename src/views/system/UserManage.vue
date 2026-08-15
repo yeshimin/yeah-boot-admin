@@ -463,6 +463,13 @@ const buildUserPayload = () => ({
   remark: userForm.remark,
 })
 
+function joinRelatedNames(items?: Array<{ name?: string } | null>) {
+  const names = items
+    ?.map((item) => item?.name)
+    .filter((name): name is string => Boolean(name))
+  return names?.length ? names.join('、') : '-'
+}
+
 // 页面加载时获取用户列表
 onMounted(() => {
   void Promise.all([loadOptions(), getUserList()])
@@ -487,9 +494,9 @@ const getUserList = async () => {
     userList.value = response.data.records.map((user) => ({
       ...user,
       nickname: user.nickname || '-',
-      orgNames: user.orgs?.map((item) => item.name).join('、') || '-',
-      postNames: user.posts?.map((item) => item.name).join('、') || '-',
-      roleNames: user.roles?.map((item) => item.name).join('、') || '-',
+      orgNames: joinRelatedNames(user.orgs),
+      postNames: joinRelatedNames(user.posts),
+      roleNames: joinRelatedNames(user.roles),
       remark: user.remark || '-',
     }))
     pagination.total = response.data.total
@@ -583,23 +590,58 @@ const handleEditUser = async (row: any) => {
   dialogVisible.value = true
 }
 
+function getDeleteErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return ''
+}
+
+function isUserCancel(error: unknown) {
+  return error === 'cancel' || error === 'close'
+}
+
+function showDeleteError(error: unknown) {
+  const message = getDeleteErrorMessage(error)
+  if (message.includes('不能删除自己')) {
+    ElMessage.warning('不能删除当前登录用户')
+    return
+  }
+  if (message.includes('不能删除超级管理员')) {
+    ElMessage.warning('不能删除超级管理员')
+    return
+  }
+  if (message.includes('用户') && message.includes('未找到')) {
+    ElMessage.warning(message)
+    return
+  }
+  ElMessage.error(message || '删除失败')
+}
+
 // 删除用户
 const handleDeleteUser = async (row: any) => {
   if (!canDeleteUser.value) {
     warnNoPermission()
     return
   }
-  ElMessageBox.confirm('确定要删除该用户吗？', '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(async () => {
-    await deleteUsers([row.id])
+  try {
+    await ElMessageBox.confirm('确定要删除该用户吗？删除后会同步清理该用户的组织、岗位、角色关联和登录状态。', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deleteUsers([row.id], { suppressErrorMessage: true })
     ElMessage.success('删除成功')
     await getUserList()
-  }).catch(() => {
-    // 取消删除
-  })
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 const handleBatchDeleteUsers = async () => {
@@ -614,18 +656,22 @@ const handleBatchDeleteUsers = async () => {
     return
   }
 
-  ElMessageBox.confirm(`确定要删除选中的 ${ids.length} 个用户吗？`, '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    await deleteUsers(ids)
+  try {
+    await ElMessageBox.confirm(`确定要删除选中的 ${ids.length} 个用户吗？删除后会同步清理这些用户的组织、岗位、角色关联和登录状态。`, '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deleteUsers(ids, { suppressErrorMessage: true })
     clearSelectedUsers()
     ElMessage.success('批量删除成功')
     await getUserList()
-  }).catch(() => {
-    // 取消删除
-  })
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 // 状态变化

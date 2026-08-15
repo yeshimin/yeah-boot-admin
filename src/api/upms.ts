@@ -70,11 +70,12 @@ export function updateUser(data: Record<string, unknown>) {
   })
 }
 
-export function deleteUsers(ids: number[]) {
+export function deleteUsers(ids: number[], options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysUser/delete',
     method: 'post',
     data: { ids },
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
