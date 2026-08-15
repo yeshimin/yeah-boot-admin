@@ -27,14 +27,15 @@
           <el-tree
             v-loading="treeLoading"
             ref="treeRef"
-            :data="areaTree"
-            node-key="id"
+            :data="leftAreaTree"
+            node-key="treeKey"
             :props="treeProps"
-            default-expand-all
+            :default-expanded-keys="defaultExpandedTreeKeys"
             highlight-current
             :expand-on-click-node="false"
             :filter-node-method="filterTreeNode"
             @node-click="handleNodeClick"
+            @node-expand="handleTreeNodeExpand"
           >
             <template #default="{ data }">
               <div class="tree-node-row">
@@ -202,6 +203,8 @@ import {
   getCityDetail,
   getDistrictDetail,
   getProvinceDetail,
+  queryCities,
+  queryDistricts,
   updateCity,
   updateDistrict,
   updateProvince,
@@ -212,6 +215,9 @@ import type { AreaFormModel, AreaNodeLevel, AreaTreeNode } from '@/types/area'
 type UnknownRecord = Record<string, unknown>
 type AreaCrudAction = 'detail' | 'create' | 'update' | 'delete'
 const ROOT_PARENT_CODE = '__ROOT__'
+const AREA_CHILD_QUERY_PAGE_SIZE = 1000
+const DEFAULT_EXPANDED_AREA_LEVEL: AreaNodeLevel = 1
+const LEFT_TREE_VISIBLE_LEVEL: AreaNodeLevel = 2
 const AREA_MODULE_BY_LEVEL: Record<AreaNodeLevel, string> = {
   1: 'admin:areaProvince',
   2: 'admin:areaCity',
@@ -223,6 +229,7 @@ const authStore = useAuthStore()
 const treeRef = ref<InstanceType<typeof ElTree>>()
 const formRef = ref<FormInstance>()
 const areaTree = ref<AreaTreeNode[]>([])
+const leftAreaTree = ref<AreaTreeNode[]>([])
 const currentNode = ref<AreaTreeNode | null>(null)
 const currentNodeDetail = ref<AreaTreeNode | null>(null)
 const tableRows = ref<AreaTreeNode[]>([])
@@ -240,6 +247,8 @@ const treeProps = {
   children: 'children',
   label: 'name',
 }
+
+const defaultExpandedTreeKeys = computed(() => collectDefaultExpandedTreeKeys(leftAreaTree.value))
 
 const parentTreeProps = {
   children: 'children',
@@ -302,6 +311,74 @@ function toText(...values: unknown[]) {
   return ''
 }
 
+function createAreaTreeKey(level: AreaNodeLevel, id: number) {
+  return `${level}-${id}`
+}
+
+function collectDefaultExpandedTreeKeys(nodes: AreaTreeNode[]) {
+  const keys: string[] = []
+
+  nodes.forEach((node) => {
+    if (node.level <= DEFAULT_EXPANDED_AREA_LEVEL) {
+      keys.push(node.treeKey)
+      if (node.children?.length) {
+        keys.push(...collectDefaultExpandedTreeKeys(node.children))
+      }
+    }
+  })
+
+  return keys
+}
+
+function createLeftTreePlaceholder(parentNode: AreaTreeNode): AreaTreeNode {
+  return {
+    id: 0,
+    treeKey: `${parentNode.treeKey}-placeholder`,
+    name: '加载中...',
+    level: 3,
+    parentCode: parentNode.code,
+    children: [],
+    isPlaceholder: true,
+  }
+}
+
+function hasOnlyPlaceholderChild(node: AreaTreeNode) {
+  return node.children?.length === 1 && Boolean(node.children[0]?.isPlaceholder)
+}
+
+function cloneAreaNodeForLeftTree(node: AreaTreeNode): AreaTreeNode {
+  const hasChildren = Boolean(node.children?.length)
+  const children = node.level < LEFT_TREE_VISIBLE_LEVEL
+    ? (node.children || []).map(cloneAreaNodeForLeftTree)
+    : node.level === LEFT_TREE_VISIBLE_LEVEL && hasChildren
+      ? [createLeftTreePlaceholder(node)]
+      : []
+
+  return {
+    ...node,
+    children,
+  }
+}
+
+function buildLeftAreaTree(nodes: AreaTreeNode[]) {
+  return nodes.map(cloneAreaNodeForLeftTree)
+}
+
+function findSourceAreaNode(node: AreaTreeNode) {
+  return findNodeByTreeKey(areaTree.value, node.treeKey) || node
+}
+
+function hydrateLeftTreeNodeChildren(node: AreaTreeNode) {
+  if (!hasOnlyPlaceholderChild(node)) {
+    return
+  }
+
+  const sourceNode = findSourceAreaNode(node)
+  const children = (sourceNode.children || []).map(cloneAreaNodeForLeftTree)
+  node.children = children
+  treeRef.value?.updateKeyChildren(node.treeKey, children)
+}
+
 function normalizeAreaNode(node: unknown, level: AreaNodeLevel, parentId = 0): AreaTreeNode {
   const raw = (node || {}) as UnknownRecord
   const currentId = toNumber(raw.id, raw.provinceId, raw.cityId, raw.districtId, raw.countyId)
@@ -313,6 +390,7 @@ function normalizeAreaNode(node: unknown, level: AreaNodeLevel, parentId = 0): A
 
   return {
     id: currentId,
+    treeKey: createAreaTreeKey(level, currentId),
     name: toText(raw.name, raw.provinceName, raw.cityName, raw.label),
     level,
     code: currentCode,
@@ -330,13 +408,13 @@ function normalizeAreaListRows(nodes: unknown[], level: AreaNodeLevel, parentId 
   return nodes.map((node) => normalizeAreaNode(node, level, parentId))
 }
 
-function findNodeById(nodes: AreaTreeNode[], id: number): AreaTreeNode | null {
+function findNodeByTreeKey(nodes: AreaTreeNode[], treeKey: string): AreaTreeNode | null {
   for (const node of nodes) {
-    if (node.id === id) {
+    if (node.treeKey === treeKey) {
       return node
     }
     if (node.children?.length) {
-      const found = findNodeById(node.children, id)
+      const found = findNodeByTreeKey(node.children, treeKey)
       if (found) {
         return found
       }
@@ -512,6 +590,7 @@ async function loadAreaTree() {
   try {
     if (!canViewAreaTree.value) {
       areaTree.value = []
+      leftAreaTree.value = []
       currentNode.value = null
       currentNodeDetail.value = null
       tableRows.value = []
@@ -520,10 +599,11 @@ async function loadAreaTree() {
 
     const response = await getAreaTree(3)
     areaTree.value = normalizeAreaTree(response.data || [])
+    leftAreaTree.value = buildLeftAreaTree(areaTree.value)
     if (!currentNode.value && areaTree.value.length) {
       currentNode.value = areaTree.value[0] || null
     } else if (currentNode.value) {
-      currentNode.value = findNodeById(areaTree.value, currentNode.value.id)
+      currentNode.value = findNodeByTreeKey(areaTree.value, currentNode.value.treeKey)
       if (!currentNode.value) {
         currentNode.value = areaTree.value[0] || null
       }
@@ -546,8 +626,15 @@ function resetForm() {
 }
 
 function handleNodeClick(node: AreaTreeNode) {
+  if (node.isPlaceholder) {
+    return
+  }
   currentNode.value = node
   void loadCurrentNodeContext(node)
+}
+
+function handleTreeNodeExpand(node: AreaTreeNode) {
+  hydrateLeftTreeNodeChildren(node)
 }
 
 function handleAdd(node?: AreaTreeNode) {
@@ -569,8 +656,11 @@ function handleAdd(node?: AreaTreeNode) {
 }
 
 function normalizeAreaDetail(detail: Record<string, unknown>, level: AreaNodeLevel) {
+  const id = toNumber(detail.id, detail.provinceId, detail.cityId, detail.districtId, detail.countyId)
+
   return {
-    id: toNumber(detail.id, detail.provinceId, detail.cityId, detail.districtId, detail.countyId),
+    id,
+    treeKey: createAreaTreeKey(level, id),
     parentCode: level === 1 ? ROOT_PARENT_CODE : toText(detail.parentCode) || ROOT_PARENT_CODE,
     name: toText(detail.name, detail.provinceName, detail.cityName, detail.districtName, detail.countyName),
     code: toText(detail.code, detail.areaCode, detail.provinceCode, detail.cityCode, detail.districtCode, detail.countyCode, detail.adcode),
@@ -604,7 +694,24 @@ async function fetchChildRows(node: AreaTreeNode) {
     return []
   }
 
-  return normalizeAreaListRows(node.children || [], childLevel, node.id)
+  const parentCode = node.code || findSourceAreaNode(node).code
+  if (!parentCode) {
+    return []
+  }
+
+  const response = childLevel === 2
+    ? await queryCities({
+        current: 1,
+        size: AREA_CHILD_QUERY_PAGE_SIZE,
+        parentCode,
+      })
+    : await queryDistricts({
+        current: 1,
+        size: AREA_CHILD_QUERY_PAGE_SIZE,
+        parentCode,
+      })
+
+  return normalizeAreaListRows(response.data?.records || [], childLevel, node.id)
 }
 
 async function loadCurrentNodeContext(node: AreaTreeNode) {
@@ -679,7 +786,7 @@ async function handleDelete(node: AreaTreeNode) {
       ElMessage.success('删除区县成功')
     }
 
-    if (currentNode.value?.id === node.id) {
+    if (currentNode.value?.treeKey === node.treeKey) {
       currentNode.value = null
       currentNodeDetail.value = null
       tableRows.value = []
@@ -806,7 +913,8 @@ void loadAreaTree()
 }
 
 .area-detail-panel {
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .tree-header,
