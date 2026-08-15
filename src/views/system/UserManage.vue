@@ -80,6 +80,7 @@
 
         <div class="table-container">
           <el-table
+            ref="userTableRef"
             v-loading="tableLoading"
             :data="userList"
             stripe
@@ -306,6 +307,7 @@ const canDeleteUser = computed(() => authStore.hasPermission('admin:sysUser:dele
 
 // 表格加载状态
 const tableLoading = ref(false)
+const userTableRef = ref<{ clearSelection: () => void }>()
 
 // 搜索表单
 const searchForm = reactive({
@@ -379,6 +381,11 @@ const hasUserRowActions = computed(() => (
 
 function warnNoPermission() {
   ElMessage.warning('暂无操作权限')
+}
+
+const clearSelectedUsers = () => {
+  selectedUsers.value = []
+  userTableRef.value?.clearSelection()
 }
 
 // 用户表单验证规则
@@ -463,6 +470,7 @@ onMounted(() => {
 
 // 获取用户列表
 const getUserList = async () => {
+  clearSelectedUsers()
   tableLoading.value = true
   try {
     const response = await queryUsers({
@@ -612,7 +620,7 @@ const handleBatchDeleteUsers = async () => {
     type: 'warning',
   }).then(async () => {
     await deleteUsers(ids)
-    selectedUsers.value = []
+    clearSelectedUsers()
     ElMessage.success('批量删除成功')
     await getUserList()
   }).catch(() => {

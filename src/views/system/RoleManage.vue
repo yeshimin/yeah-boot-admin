@@ -40,6 +40,7 @@
 
     <div class="table-container">
       <el-table
+        ref="roleTableRef"
         v-loading="tableLoading"
         :data="roleList"
         stripe
@@ -201,6 +202,7 @@ const canAssignRoleResources = computed(() => (
 
 // 表格加载状态
 const tableLoading = ref(false)
+const roleTableRef = ref<{ clearSelection: () => void }>()
 
 // 搜索表单
 const searchForm = reactive({
@@ -253,6 +255,11 @@ function warnNoPermission() {
   ElMessage.warning('暂无操作权限')
 }
 
+const clearSelectedRoles = () => {
+  selectedRoles.value = []
+  roleTableRef.value?.clearSelection()
+}
+
 // 角色表单验证规则
 const roleRules = reactive<FormRules>({
   code: [
@@ -290,6 +297,7 @@ onMounted(() => {
 
 // 获取角色列表
 const getRoleList = async () => {
+  clearSelectedRoles()
   tableLoading.value = true
   try {
     const response = await queryRoles({
@@ -412,7 +420,7 @@ const handleBatchDeleteRoles = async () => {
     type: 'warning',
   }).then(async () => {
     await deleteRoles(ids)
-    selectedRoles.value = []
+    clearSelectedRoles()
     ElMessage.success('批量删除成功')
     await getRoleList()
   }).catch(() => {

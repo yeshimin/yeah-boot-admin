@@ -40,6 +40,7 @@
 
     <div class="table-container">
       <el-table
+        ref="positionTableRef"
         v-loading="tableLoading"
         :data="positionList"
         stripe
@@ -163,6 +164,7 @@ const canDeletePosition = computed(() => authStore.hasPermission('admin:sysPost:
 
 // 表格加载状态
 const tableLoading = ref(false)
+const positionTableRef = ref<{ clearSelection: () => void }>()
 
 // 搜索表单
 const searchForm = reactive({
@@ -215,6 +217,11 @@ function warnNoPermission() {
   ElMessage.warning('暂无操作权限')
 }
 
+const clearSelectedPositions = () => {
+  selectedPositions.value = []
+  positionTableRef.value?.clearSelection()
+}
+
 // 岗位表单验证规则
 const positionRules = reactive<FormRules>({
   name: [
@@ -237,6 +244,7 @@ onMounted(() => {
 
 // 获取岗位列表
 const getPositionList = async () => {
+  clearSelectedPositions()
   tableLoading.value = true
   try {
     const response = await queryPosts({
@@ -356,7 +364,7 @@ const handleBatchDeletePositions = async () => {
     type: 'warning',
   }).then(async () => {
     await deletePosts(ids)
-    selectedPositions.value = []
+    clearSelectedPositions()
     ElMessage.success('批量删除成功')
     await getPositionList()
   }).catch(() => {

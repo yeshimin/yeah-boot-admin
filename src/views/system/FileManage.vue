@@ -46,6 +46,7 @@
 
     <div class="table-container">
       <el-table
+        ref="fileTableRef"
         v-loading="tableLoading"
         :data="fileList"
         border
@@ -183,6 +184,7 @@ type UnknownRecord = Record<string, unknown>
 const authStore = useAuthStore()
 const uploadFormRef = ref<FormInstance>()
 const fileInputRef = ref<HTMLInputElement>()
+const fileTableRef = ref<{ clearSelection: () => void }>()
 const tableLoading = ref(false)
 const dialogVisible = ref(false)
 const detailVisible = ref(false)
@@ -240,6 +242,11 @@ const hasFileRowActions = computed(() => (
 
 function warnNoPermission() {
   ElMessage.warning('暂无操作权限')
+}
+
+function clearSelectedFiles() {
+  selectedFiles.value = []
+  fileTableRef.value?.clearSelection()
 }
 
 function toNumber(...values: unknown[]) {
@@ -313,6 +320,7 @@ function buildQueryParams() {
 }
 
 async function getFileList() {
+  clearSelectedFiles()
   tableLoading.value = true
   try {
     const response = await queryFiles(buildQueryParams())
@@ -494,7 +502,7 @@ async function handleBatchDelete() {
     type: 'warning',
   }).then(async () => {
     await deleteFiles(deletePayload)
-    selectedFiles.value = []
+    clearSelectedFiles()
     ElMessage.success('批量删除成功')
     await getFileList()
   }).catch(() => {
