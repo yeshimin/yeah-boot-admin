@@ -16,11 +16,15 @@ export interface UploadStorageResponse {
 
 export function uploadStorageFile(payload: UploadStorageRequest) {
   const formData = new FormData()
+  const path = payload.path?.trim()
+
   formData.append('file', payload.file)
   formData.append('storageType', payload.storageType || '1')
   formData.append('isPublic', payload.isPublic || 'true')
   formData.append('isUsed', payload.isUsed || 'false')
-  formData.append('path', payload.path || 'tempdir0129')
+  if (path) {
+    formData.append('path', path)
+  }
 
   return request<UploadStorageResponse>({
     url: '/basic/storage/upload',

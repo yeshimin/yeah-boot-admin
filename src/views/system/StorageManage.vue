@@ -226,6 +226,7 @@ import {
   queryStorageFiles,
   uploadStorageFile,
 } from '@/api/storage'
+import { STORAGE_UPLOAD_PATH } from '@/constants/storage'
 import { useAuthStore } from '@/stores/auth'
 import type { ManagedStorageRecord, StorageUploadFormModel } from '@/types/storage'
 import { buildConditions } from '@/utils/query'
@@ -270,7 +271,7 @@ const uploadForm = reactive<StorageUploadFormModel>({
   storageType: '1',
   isPublic: 'true',
   isUsed: 'false',
-  path: 'default',
+  path: STORAGE_UPLOAD_PATH.MANAGED_FILE,
 })
 
 const uploadRules = reactive<FormRules>({
@@ -456,7 +457,7 @@ function resetUploadForm() {
   uploadForm.storageType = '1'
   uploadForm.isPublic = 'true'
   uploadForm.isUsed = 'false'
-  uploadForm.path = 'default'
+  uploadForm.path = STORAGE_UPLOAD_PATH.MANAGED_FILE
   selectedFile.value = null
   uploadFormRef.value?.clearValidate()
 }

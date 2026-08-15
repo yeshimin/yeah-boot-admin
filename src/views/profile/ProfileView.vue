@@ -179,6 +179,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { uploadStorageFile } from '@/api/storage'
+import { STORAGE_UPLOAD_PATH } from '@/constants/storage'
 import { updateMine } from '@/api/upms'
 import { useAuthStore } from '@/stores/auth'
 import type { UpdateMineRequest } from '@/types/upms'
@@ -459,7 +460,7 @@ async function handleSubmitProfile() {
         storageType: '1',
         isPublic: 'true',
         isUsed: 'false',
-        path: 'tempdir0129',
+        path: STORAGE_UPLOAD_PATH.AVATAR,
       })
       avatar = response.data.fileKey
     }
