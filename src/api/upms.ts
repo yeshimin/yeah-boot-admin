@@ -199,11 +199,12 @@ export function updatePost(data: Record<string, unknown>) {
   })
 }
 
-export function deletePosts(ids: number[]) {
+export function deletePosts(ids: number[], options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysPost/delete',
     method: 'post',
     data: { ids },
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 

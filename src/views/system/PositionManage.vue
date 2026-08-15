@@ -327,23 +327,50 @@ const handleEditPosition = async (row: any) => {
   dialogVisible.value = true
 }
 
+function getDeleteErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return ''
+}
+
+function isUserCancel(error: unknown) {
+  return error === 'cancel' || error === 'close'
+}
+
+function showDeleteError(error: unknown) {
+  const message = getDeleteErrorMessage(error)
+  if (message.includes('关联')) {
+    ElMessage.warning('该岗位已绑定用户，请先解除用户关联后再删除')
+    return
+  }
+  ElMessage.error(message || '删除失败')
+}
+
 // 删除岗位
 const handleDeletePosition = async (row: any) => {
   if (!canDeletePosition.value) {
     warnNoPermission()
     return
   }
-  ElMessageBox.confirm('确定要删除该岗位吗？', '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(async () => {
-    await deletePosts([row.id])
+  try {
+    await ElMessageBox.confirm('确定要删除该岗位吗？删除前请确认该岗位未绑定用户。', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deletePosts([row.id], { suppressErrorMessage: true })
     ElMessage.success('删除成功')
     await getPositionList()
-  }).catch(() => {
-    // 取消删除
-  })
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 const handleBatchDeletePositions = async () => {
@@ -358,18 +385,22 @@ const handleBatchDeletePositions = async () => {
     return
   }
 
-  ElMessageBox.confirm(`确定要删除选中的 ${ids.length} 个岗位吗？`, '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    await deletePosts(ids)
+  try {
+    await ElMessageBox.confirm(`确定要删除选中的 ${ids.length} 个岗位吗？删除前请确认这些岗位未绑定用户。`, '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deletePosts(ids, { suppressErrorMessage: true })
     clearSelectedPositions()
     ElMessage.success('批量删除成功')
     await getPositionList()
-  }).catch(() => {
-    // 取消删除
-  })
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 // 状态变化
@@ -407,7 +438,7 @@ const handleSubmitPosition = async () => {
       code: positionForm.code,
       sort: positionForm.sort,
       status: positionForm.status,
-      remark: positionForm.remark || undefined,
+      remark: positionForm.remark,
     }
 
     if (positionForm.id) {
