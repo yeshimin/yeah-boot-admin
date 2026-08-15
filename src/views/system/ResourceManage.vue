@@ -29,11 +29,11 @@
     <div class="action-bar">
       <div class="action-buttons">
         <el-button
-            v-if="canCreateResource"
+          v-if="canCreateResource"
           type="primary"
           @click="handleAddResource"
         >
-          <el-icon><Plus /></el-icon>新增菜单
+          <el-icon><Plus /></el-icon>新增资源
         </el-button>
       </div>
     </div>
@@ -106,15 +106,15 @@
         :rules="resourceRules"
         label-width="100px"
       >
-        <el-form-item label="上级菜单" prop="parentId">
+        <el-form-item label="上级资源" prop="parentId">
           <el-tree-select
             v-model="resourceForm.parentId"
             :data="parentOptions"
-            :props="{ value: 'id', label: 'name', children: 'children' }"
+            :props="parentTreeProps"
             value-key="id"
             check-strictly
             default-expand-all
-            placeholder="请选择上级菜单"
+            placeholder="请选择上级资源"
           />
         </el-form-item>
         <el-form-item label="资源名称" prop="name">
@@ -128,13 +128,13 @@
             <el-option label="接口" :value="4"></el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="路径" prop="path">
+        <el-form-item v-if="isRouteResource" label="路径" prop="path">
           <el-input v-model="resourceForm.path" placeholder="请输入路径"></el-input>
         </el-form-item>
-        <el-form-item label="组件" prop="component">
+        <el-form-item v-if="isRouteResource && !resourceForm.isLink" label="组件" prop="component">
           <el-input v-model="resourceForm.component" placeholder="请输入前端组件路径"></el-input>
         </el-form-item>
-        <el-form-item label="图标" prop="icon">
+        <el-form-item v-if="isRouteResource" label="图标" prop="icon">
           <el-popover placement="bottom-start" :width="420" trigger="click">
             <template #reference>
               <el-input v-model="resourceForm.icon" placeholder="点击选择图标" readonly>
@@ -149,16 +149,16 @@
             <IconSelectPopover v-model="resourceForm.icon" :icons="availableIcons" />
           </el-popover>
         </el-form-item>
-        <el-form-item label="权限标识" prop="permission">
+        <el-form-item v-if="isPermissionResource" label="权限标识" prop="permission">
           <el-input v-model="resourceForm.permission" placeholder="请输入权限标识"></el-input>
         </el-form-item>
-        <el-form-item label="外链" prop="isLink">
+        <el-form-item v-if="isRouteResource" label="外链" prop="isLink">
           <el-switch v-model="resourceForm.isLink"></el-switch>
         </el-form-item>
-        <el-form-item label="外链地址" prop="linkUrl" v-if="resourceForm.isLink">
+        <el-form-item v-if="isRouteResource && resourceForm.isLink" label="外链地址" prop="linkUrl">
           <el-input v-model="resourceForm.linkUrl" placeholder="请输入外链地址"></el-input>
         </el-form-item>
-        <el-form-item label="可见" prop="visible">
+        <el-form-item v-if="isRouteResource" label="可见" prop="visible">
           <el-switch v-model="resourceForm.visible"></el-switch>
         </el-form-item>
         <el-form-item label="排序" prop="sort">
@@ -187,12 +187,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { Plus, Grid } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import IconSelectPopover from '@/components/layout/IconSelectPopover.vue'
+import { isActionResourceType, isMenuResourceType } from '@/constants/resource'
 import {
   createResource,
   deleteResources,
@@ -202,6 +203,13 @@ import {
 } from '@/api/upms'
 import type { ResourceTreeNode } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
+
+interface ParentResourceOption {
+  id: number
+  name: string
+  disabled?: boolean
+  children?: ParentResourceOption[]
+}
 
 const authStore = useAuthStore()
 const canCreateResource = computed(() => authStore.hasPermission('admin:sysRes:create'))
@@ -236,14 +244,20 @@ const searchForm = reactive({
   status: ''
 })
 
-const parentOptions = ref<any[]>([])
+const parentTreeProps = {
+  value: 'id',
+  label: 'name',
+  children: 'children',
+  disabled: 'disabled',
+}
 
 // 资源列表数据
-const resourceList = ref<any[]>([])
+const resourceList = ref<ResourceTreeNode[]>([])
+const resourceTree = ref<ResourceTreeNode[]>([])
 
 // 弹窗控制
 const dialogVisible = ref(false)
-const dialogTitle = ref('新增菜单')
+const dialogTitle = ref('新增资源')
 
 // 资源表单引用
 const resourceFormRef = ref<FormInstance>()
@@ -265,8 +279,21 @@ const resourceForm = reactive({
   status: '1',
   remark: '',
 })
+const initializingResourceForm = ref(false)
 const canSubmitResourceForm = computed(() => (resourceForm.id ? canUpdateResource.value : canCreateResource.value))
 const hasResourceRowActions = computed(() => canUpdateResource.value || canDeleteResource.value)
+const isRouteResource = computed(() => isMenuResourceType(resourceForm.type))
+const isPermissionResource = computed(() => isActionResourceType(resourceForm.type))
+const currentEditingNode = computed(() => (
+  resourceForm.id ? findNodeById(resourceTree.value, resourceForm.id) : null
+))
+const parentOptions = computed<ParentResourceOption[]>(() => [
+  {
+    id: 0,
+    name: '顶级资源',
+    children: resourceTree.value.map((node) => createParentOption(node, currentEditingNode.value)),
+  },
+])
 
 function warnNoPermission() {
   ElMessage.warning('暂无操作权限')
@@ -286,15 +313,41 @@ const resourceRules = reactive<FormRules>({
   ]
 })
 
+function findNodeById(nodes: ResourceTreeNode[], id: number): ResourceTreeNode | null {
+  for (const node of nodes) {
+    if (node.id === id) {
+      return node
+    }
+    const matched = node.children?.length ? findNodeById(node.children, id) : null
+    if (matched) {
+      return matched
+    }
+  }
+  return null
+}
+
+function isSameOrDescendantNode(node: ResourceTreeNode, id: number): boolean {
+  if (node.id === id) {
+    return true
+  }
+  return node.children?.some((child) => isSameOrDescendantNode(child, id)) || false
+}
+
+function createParentOption(
+  node: ResourceTreeNode,
+  editingNode: ResourceTreeNode | null,
+): ParentResourceOption {
+  return {
+    id: node.id,
+    name: node.name,
+    disabled: Boolean(editingNode && isSameOrDescendantNode(editingNode, node.id)),
+    children: node.children?.map((child) => createParentOption(child, editingNode)) || [],
+  }
+}
+
 const loadParentOptions = async () => {
   const response = await getResourceTree()
-  parentOptions.value = [
-    {
-      id: 0,
-      name: '根菜单',
-      children: response.data,
-    },
-  ]
+  resourceTree.value = response.data || []
 }
 
 // 页面加载时获取资源列表
@@ -352,7 +405,7 @@ const handleAddResource = () => {
     warnNoPermission()
     return
   }
-  dialogTitle.value = '新增菜单'
+  dialogTitle.value = '新增资源'
   resetResourceForm()
   resourceForm.parentId = 0
   dialogVisible.value = true
@@ -364,8 +417,9 @@ const handleEditResource = async (row: any) => {
     warnNoPermission()
     return
   }
-  dialogTitle.value = '编辑菜单'
+  dialogTitle.value = '编辑资源'
   const response = await getResourceDetail(row.id)
+  initializingResourceForm.value = true
   Object.assign(resourceForm, {
     id: response.data.id,
     parentId: Number(response.data.parentId ?? 0),
@@ -382,7 +436,35 @@ const handleEditResource = async (row: any) => {
     status: response.data.status || '1',
     remark: response.data.remark || '',
   })
+  initializingResourceForm.value = false
   dialogVisible.value = true
+}
+
+function getDeleteErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return ''
+}
+
+function isUserCancel(error: unknown) {
+  return error === 'cancel' || error === 'close'
+}
+
+function showDeleteError(error: unknown) {
+  const message = getDeleteErrorMessage(error)
+  if (message.includes('子节点')) {
+    ElMessage.warning('该资源存在子资源，请先删除或迁移子资源后再删除')
+    return
+  }
+  if (message.includes('关联')) {
+    ElMessage.warning('该资源已绑定角色权限，请先解除角色关联后再删除')
+    return
+  }
+  ElMessage.error(message || '删除失败')
 }
 
 // 删除资源
@@ -391,17 +473,21 @@ const handleDeleteResource = async (row: any) => {
     warnNoPermission()
     return
   }
-  ElMessageBox.confirm('确定要删除该资源吗？', '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(async () => {
-    await deleteResources([row.id])
+  try {
+    await ElMessageBox.confirm('确定要删除该资源吗？删除前请确认该资源没有子资源且未绑定角色。', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deleteResources([row.id], { suppressErrorMessage: true })
     ElMessage.success('删除成功')
     await Promise.all([loadParentOptions(), getResourceList()])
-  }).catch(() => {
-    // 取消删除
-  })
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 // 状态变化
@@ -433,29 +519,31 @@ const handleSubmitResource = async () => {
   if (!resourceFormRef.value) return
   try {
     await resourceFormRef.value.validate()
+    const routeResource = isMenuResourceType(resourceForm.type)
+    const permissionResource = isActionResourceType(resourceForm.type)
     const payload = {
       id: resourceForm.id || undefined,
-      parentId: resourceForm.parentId,
+      parentId: resourceForm.parentId ?? 0,
       name: resourceForm.name,
       type: resourceForm.type,
-      path: resourceForm.path || undefined,
-      component: resourceForm.component || undefined,
-      icon: resourceForm.icon || undefined,
-      permission: resourceForm.permission || undefined,
-      isLink: resourceForm.isLink,
-      linkUrl: resourceForm.linkUrl || undefined,
-      visible: resourceForm.visible,
+      path: routeResource ? resourceForm.path : '',
+      component: routeResource && !resourceForm.isLink ? resourceForm.component : '',
+      icon: routeResource ? resourceForm.icon : '',
+      permission: permissionResource ? resourceForm.permission : '',
+      isLink: routeResource ? resourceForm.isLink : false,
+      linkUrl: routeResource && resourceForm.isLink ? resourceForm.linkUrl : '',
+      visible: routeResource ? resourceForm.visible : true,
       sort: resourceForm.sort,
       status: resourceForm.status,
-      remark: resourceForm.remark || undefined,
+      remark: resourceForm.remark,
     }
 
     if (resourceForm.id) {
       await updateResource(payload)
-      ElMessage.success('编辑菜单成功')
+      ElMessage.success('编辑资源成功')
     } else {
       await createResource(payload)
-      ElMessage.success('新增菜单成功')
+      ElMessage.success('新增资源成功')
     }
     dialogVisible.value = false
     await Promise.all([loadParentOptions(), getResourceList()])
@@ -466,6 +554,7 @@ const handleSubmitResource = async () => {
 
 // 重置资源表单
 const resetResourceForm = () => {
+  initializingResourceForm.value = true
   Object.assign(resourceForm, {
     id: 0,
     parentId: 0,
@@ -482,10 +571,50 @@ const resetResourceForm = () => {
     status: '1',
     remark: '',
   })
+  initializingResourceForm.value = false
   if (resourceFormRef.value) {
     resourceFormRef.value.clearValidate()
   }
 }
+
+function normalizeResourceFormByType() {
+  if (isMenuResourceType(resourceForm.type)) {
+    resourceForm.permission = ''
+    return
+  }
+
+  resourceForm.path = ''
+  resourceForm.component = ''
+  resourceForm.icon = ''
+  resourceForm.isLink = false
+  resourceForm.linkUrl = ''
+  resourceForm.visible = true
+}
+
+watch(
+  () => resourceForm.type,
+  () => {
+    if (!initializingResourceForm.value) {
+      normalizeResourceFormByType()
+    }
+  },
+  { flush: 'sync' },
+)
+
+watch(
+  () => resourceForm.isLink,
+  (isLink) => {
+    if (initializingResourceForm.value) {
+      return
+    }
+    if (isLink) {
+      resourceForm.component = ''
+      return
+    }
+    resourceForm.linkUrl = ''
+  },
+  { flush: 'sync' },
+)
 
 // 关闭对话框
 const handleDialogClose = () => {

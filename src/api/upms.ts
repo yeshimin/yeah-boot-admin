@@ -158,11 +158,12 @@ export function updateResource(data: Record<string, unknown>) {
   })
 }
 
-export function deleteResources(ids: number[]) {
+export function deleteResources(ids: number[], options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysRes/delete',
     method: 'post',
     data: { ids },
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
