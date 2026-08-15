@@ -110,11 +110,12 @@ export function updateRole(data: Record<string, unknown>) {
   })
 }
 
-export function deleteRoles(ids: number[]) {
+export function deleteRoles(ids: number[], options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysRole/delete',
     method: 'post',
     data: { ids },
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 

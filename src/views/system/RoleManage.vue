@@ -160,7 +160,6 @@
           node-key="id"
           :props="permissionTreeProps"
           :default-checked-keys="checkedPermissions"
-          @check="handlePermissionCheck"
         ></el-tree>
       </div>
       <template #footer>
@@ -383,23 +382,50 @@ const handleEditRole = async (row: any) => {
   dialogVisible.value = true
 }
 
+function getDeleteErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return ''
+}
+
+function isUserCancel(error: unknown) {
+  return error === 'cancel' || error === 'close'
+}
+
+function showDeleteError(error: unknown) {
+  const message = getDeleteErrorMessage(error)
+  if (message.includes('关联')) {
+    ElMessage.warning('该角色已绑定用户，请先解除用户关联后再删除')
+    return
+  }
+  ElMessage.error(message || '删除失败')
+}
+
 // 删除角色
 const handleDeleteRole = async (row: any) => {
   if (!canDeleteRole.value) {
     warnNoPermission()
     return
   }
-  ElMessageBox.confirm('确定要删除该角色吗？', '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(async () => {
-    await deleteRoles([row.id])
+  try {
+    await ElMessageBox.confirm('确定要删除该角色吗？删除前请确认该角色未绑定用户。', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deleteRoles([row.id], { suppressErrorMessage: true })
     ElMessage.success('删除成功')
     await getRoleList()
-  }).catch(() => {
-    // 取消删除
-  })
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 const handleBatchDeleteRoles = async () => {
@@ -414,18 +440,22 @@ const handleBatchDeleteRoles = async () => {
     return
   }
 
-  ElMessageBox.confirm(`确定要删除选中的 ${ids.length} 个角色吗？`, '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    await deleteRoles(ids)
+  try {
+    await ElMessageBox.confirm(`确定要删除选中的 ${ids.length} 个角色吗？删除前请确认这些角色未绑定用户。`, '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deleteRoles(ids, { suppressErrorMessage: true })
     clearSelectedRoles()
     ElMessage.success('批量删除成功')
     await getRoleList()
-  }).catch(() => {
-    // 取消删除
-  })
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 // 状态变化
@@ -530,6 +560,7 @@ const handleSubmitPermission = async () => {
 
   const checkedKeys = permissionTreeRef.value.getCheckedKeys() as number[]
   const halfCheckedKeys = permissionTreeRef.value.getHalfCheckedKeys() as number[]
+  // 半选父节点也要保存：页面/菜单这类父级资源用于控制菜单和路由可见性。
   const selectedKeys = Array.from(new Set([...checkedKeys, ...halfCheckedKeys]))
 
   await setRoleResources(currentRole.value.id, selectedKeys)
@@ -549,11 +580,6 @@ const handleSubmitPermission = async () => {
   currentRole.value = null
 }
 
-// 权限勾选变化
-const handlePermissionCheck = (data: any, checked: any) => {
-  // 处理权限勾选逻辑
-}
-
 // 重置角色表单
 const resetRoleForm = () => {
   Object.assign(roleForm, {
@@ -565,9 +591,7 @@ const resetRoleForm = () => {
     permissions: [],
     createTime: ''
   })
-  if (roleFormRef.value) {
-    roleFormRef.value.resetFields()
-  }
+  roleFormRef.value?.clearValidate()
 }
 
 // 关闭角色对话框
