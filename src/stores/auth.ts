@@ -18,6 +18,13 @@ const MENU_ROUTE_MAP: Record<string, string> = {
   '/system/log': '/system/log',
 }
 
+const RESOURCE_STATUS_DISABLED = '2'
+const PROFILE_PATH = '/profile'
+
+function isEnabledResource(item: ResourceTreeNode) {
+  return item.status !== RESOURCE_STATUS_DISABLED
+}
+
 function toAbsolutePath(parentPath: string | undefined, path: string | undefined) {
   if (!path) {
     return ''
@@ -33,7 +40,7 @@ function toAbsolutePath(parentPath: string | undefined, path: string | undefined
 
 function normalizeMenuTree(resources: ResourceTreeNode[], parentPath?: string, forceChecked = false): ResourceTreeNode[] {
   return resources
-    .filter((item) => item.visible !== false && isMenuResourceType(item.type))
+    .filter((item) => isEnabledResource(item) && item.visible !== false && isMenuResourceType(item.type))
     .map((item) => {
       const absolutePath = toAbsolutePath(parentPath, item.path)
       const normalizedPath = item.type === RESOURCE_TYPE.MENU ? absolutePath : (MENU_ROUTE_MAP[absolutePath] || absolutePath)
@@ -53,16 +60,18 @@ function normalizeMenuTree(resources: ResourceTreeNode[], parentPath?: string, f
 }
 
 function normalizeResourceTree(resources: ResourceTreeNode[], parentPath?: string, forceChecked = false): ResourceTreeNode[] {
-  return resources.map((item) => {
-    const absolutePath = toAbsolutePath(parentPath, item.path)
-    const normalizedPath = item.type === RESOURCE_TYPE.MENU ? absolutePath : (MENU_ROUTE_MAP[absolutePath] || absolutePath)
-    return {
-      ...item,
-      checked: forceChecked || item.checked,
-      path: normalizedPath,
-      children: item.children ? normalizeResourceTree(item.children, absolutePath, forceChecked) : [],
-    }
-  })
+  return resources
+    .filter(isEnabledResource)
+    .map((item) => {
+      const absolutePath = toAbsolutePath(parentPath, item.path)
+      const normalizedPath = item.type === RESOURCE_TYPE.MENU ? absolutePath : (MENU_ROUTE_MAP[absolutePath] || absolutePath)
+      return {
+        ...item,
+        checked: forceChecked || item.checked,
+        path: normalizedPath,
+        children: item.children ? normalizeResourceTree(item.children, absolutePath, forceChecked) : [],
+      }
+    })
 }
 
 function collectAccessiblePaths(resources: ResourceTreeNode[]): string[] {
@@ -101,6 +110,9 @@ function findFirstLeafPath(resources: ResourceTreeNode[]): string {
 
 function collectPermissionSet(resources: ResourceTreeNode[], bucket = new Set<string>()) {
   resources.forEach((node) => {
+    if (!isEnabledResource(node)) {
+      return
+    }
     if (node.checked === true && node.permission) {
       bucket.add(node.permission)
     }
@@ -133,7 +145,7 @@ export const useAuthStore = defineStore('auth', () => {
       .forEach((permission) => set.add(permission))
     return set
   })
-  const firstAccessiblePath = computed(() => findFirstLeafPath(sidebarMenus.value) || '/404')
+  const firstAccessiblePath = computed(() => findFirstLeafPath(sidebarMenus.value) || PROFILE_PATH)
 
   async function refreshCaptcha() {
     const response = await getCaptchaApi()
@@ -148,6 +160,13 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = nextToken
     initialized.value = false
     resetUnauthorizedState()
+
+    try {
+      await fetchAuthContext()
+    } catch (error) {
+      await clearAuth()
+      throw error
+    }
   }
 
   function assignAuthContext(mineData: MineVo, resourceTree: ResourceTreeNode[]) {

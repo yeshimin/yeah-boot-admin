@@ -249,9 +249,6 @@ router.beforeEach(async (to) => {
 
   // 不需要登录的页面直接放行
   if (to.path === '/login') {
-    if (authStore.token) {
-      return '/'
-    }
     return true
   }
 
