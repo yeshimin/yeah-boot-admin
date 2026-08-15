@@ -6,6 +6,7 @@ import { handleUnauthorized } from './session'
 
 type RequestConfig = AxiosRequestConfig & {
   skipAuth?: boolean
+  suppressErrorMessage?: boolean
 }
 
 const service = axios.create({
@@ -82,7 +83,9 @@ service.interceptors.response.use(
       message = `系统接口 ${error.response.status} 异常`
     }
 
-    ElMessage.error(message)
+    if (!requestConfig?.suppressErrorMessage) {
+      ElMessage.error(message)
+    }
     return Promise.reject(error)
   },
 )
@@ -102,7 +105,9 @@ export function request<T>(config: RequestConfig) {
       return Promise.reject(new Error(message || 'Unauthorized'))
     }
 
-    ElMessage.error(message)
+    if (!config.suppressErrorMessage) {
+      ElMessage.error(message)
+    }
     return Promise.reject(new Error(message))
   })
 }

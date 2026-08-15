@@ -170,8 +170,17 @@
         :rules="formRules"
         label-width="100px"
       >
-        <el-form-item label="上级节点">
-          <el-input :model-value="parentDisplayName" disabled></el-input>
+        <el-form-item label="上级节点" prop="parentId">
+          <el-tree-select
+            v-model="form.parentId"
+            :data="parentTreeOptions"
+            :props="parentTreeProps"
+            value-key="id"
+            check-strictly
+            default-expand-all
+            placeholder="请选择上级节点"
+            style="width: 100%"
+          ></el-tree-select>
         </el-form-item>
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入名称"></el-input>
@@ -213,6 +222,13 @@ import { useAuthStore } from '@/stores/auth'
 import { createDict, deleteDicts, getDictDetail, getDictTree, updateDict } from '@/api/upms'
 import type { SysDictTreeNode } from '@/types/upms'
 
+type DictParentOption = {
+  id: number
+  name: string
+  disabled?: boolean
+  children?: DictParentOption[]
+}
+
 const authStore = useAuthStore()
 const canCreateDict = computed(() => authStore.hasPermission('admin:sysDict:create'))
 const canUpdateDict = computed(() => authStore.hasPermission('admin:sysDict:update'))
@@ -230,6 +246,12 @@ const dialogTitle = ref('新增字典节点')
 const treeProps = {
   children: 'children',
   label: 'name',
+}
+
+const parentTreeProps = {
+  children: 'children',
+  label: 'name',
+  disabled: 'disabled',
 }
 
 const form = ref({
@@ -267,33 +289,23 @@ const tableRows = computed(() => {
   return currentNode.value.children || []
 })
 
-const parentDisplayName = computed(() => {
-  if (!form.value.parentId) {
-    return '顶级节点'
-  }
-  return findNodeName(dictTree.value, form.value.parentId) || '顶级节点'
-})
+const parentTreeOptions = computed<DictParentOption[]>(() => [
+  {
+    id: 0,
+    name: '顶级节点',
+    children: dictTree.value.map((node) => createParentTreeOption(node, currentEditingNode.value)),
+  },
+])
+
+const currentEditingNode = computed(() => (
+  form.value.id ? findNodeById(dictTree.value, form.value.id) : null
+))
 
 function filterTreeNode(value: string, data: SysDictTreeNode) {
   if (!value) {
     return true
   }
   return data.name?.includes(value) || data.code?.includes(value)
-}
-
-function findNodeName(nodes: SysDictTreeNode[], id: number): string {
-  for (const node of nodes) {
-    if (node.id === id) {
-      return node.name
-    }
-    if (node.children?.length) {
-      const found = findNodeName(node.children, id)
-      if (found) {
-        return found
-      }
-    }
-  }
-  return ''
 }
 
 async function loadDictTree() {
@@ -325,6 +337,22 @@ function findNodeById(nodes: SysDictTreeNode[], id: number): SysDictTreeNode | n
     }
   }
   return null
+}
+
+function isSameOrDescendantNode(node: SysDictTreeNode, id: number): boolean {
+  if (node.id === id) {
+    return true
+  }
+  return Boolean(node.children?.some((child) => isSameOrDescendantNode(child, id)))
+}
+
+function createParentTreeOption(node: SysDictTreeNode, editingNode: SysDictTreeNode | null): DictParentOption {
+  return {
+    id: node.id,
+    name: node.name,
+    disabled: Boolean(editingNode && isSameOrDescendantNode(editingNode, node.id)),
+    children: node.children?.map((child) => createParentTreeOption(child, editingNode)) || [],
+  }
 }
 
 function resetForm() {
@@ -385,25 +413,90 @@ async function handleEdit(row: SysDictTreeNode) {
   dialogVisible.value = true
 }
 
+function getDeleteErrorMessage(error: unknown) {
+  const responseMessage = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
+  if (responseMessage) {
+    return responseMessage
+  }
+  const responseStatus = (error as { response?: { status?: number } } | undefined)?.response?.status
+  if (responseStatus) {
+    return `系统接口 ${responseStatus} 异常`
+  }
+  if (error instanceof Error) {
+    return error.message
+  }
+  return String(error || '')
+}
+
+function isUserCancel(error: unknown) {
+  return error === 'cancel' || error === 'close'
+}
+
+function isChildNodeDeleteBlocked(error: unknown) {
+  return getDeleteErrorMessage(error).includes('子节点')
+}
+
+function showDeleteError(error: unknown) {
+  const message = getDeleteErrorMessage(error)
+  if (message) {
+    ElMessage.error(message)
+  }
+}
+
+async function executeDelete(row: SysDictTreeNode, force: boolean, suppressErrorMessage = false) {
+  await deleteDicts([row.id], force, { suppressErrorMessage })
+  ElMessage.success(force ? '强制删除成功' : '删除成功')
+
+  if (currentNode.value && isSameOrDescendantNode(row, currentNode.value.id)) {
+    currentNode.value = null
+  }
+
+  await loadDictTree()
+}
+
+async function confirmForceDelete(row: SysDictTreeNode) {
+  try {
+    await ElMessageBox.confirm(
+      '该字典存在子节点，强制删除会同时删除当前节点及所有下级节点，是否继续？',
+      '强制删除确认',
+      {
+        confirmButtonText: '强制删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger',
+      },
+    )
+    await executeDelete(row, true)
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+  }
+}
+
 async function handleDelete(row: SysDictTreeNode) {
   if (!canDeleteDict.value) {
     warnNoPermission()
     return
   }
-  ElMessageBox.confirm('确定要删除该字典节点吗？如存在子节点，后端可能会拒绝删除。', '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    await deleteDicts([row.id], false)
-    ElMessage.success('删除成功')
-    if (currentNode.value?.id === row.id) {
-      currentNode.value = null
+
+  try {
+    await ElMessageBox.confirm('确定要删除该字典节点吗？', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await executeDelete(row, false, true)
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
     }
-    await loadDictTree()
-  }).catch(() => {
-    // 用户取消
-  })
+    if (isChildNodeDeleteBlocked(error)) {
+      await confirmForceDelete(row)
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 async function handleSubmit() {
@@ -418,7 +511,7 @@ async function handleSubmit() {
     await formRef.value.validate()
     const payload = {
       id: form.value.id || undefined,
-      parentId: form.value.parentId || undefined,
+      parentId: form.value.parentId ?? 0,
       code: form.value.code,
       name: form.value.name,
       value: form.value.value || undefined,

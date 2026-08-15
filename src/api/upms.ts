@@ -304,11 +304,12 @@ export function updateDict(data: Record<string, unknown>) {
   })
 }
 
-export function deleteDicts(ids: number[], force = false) {
+export function deleteDicts(ids: number[], force = false, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysDict/delete',
     method: 'post',
     data: { ids, force },
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
