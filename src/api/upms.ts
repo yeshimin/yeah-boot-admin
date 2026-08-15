@@ -255,11 +255,12 @@ export function updateOrg(data: Record<string, unknown>) {
   })
 }
 
-export function deleteOrgs(ids: number[]) {
+export function deleteOrgs(ids: number[], options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysOrg/delete',
     method: 'post',
     data: { ids },
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 

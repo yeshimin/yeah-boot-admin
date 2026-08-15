@@ -21,7 +21,7 @@
     <div class="action-bar">
       <div class="action-buttons">
         <el-button
-            v-if="canCreateOrg"
+          v-if="canCreateOrg"
           type="primary"
           @click="handleAddRoot"
         >
@@ -99,7 +99,7 @@
           <el-tree-select
             v-model="form.parentId"
             :data="parentOptions"
-            :props="{ value: 'id', label: 'name', children: 'children' }"
+            :props="parentTreeProps"
             value-key="id"
             check-strictly
             default-expand-all
@@ -143,6 +143,13 @@ import { useAuthStore } from '@/stores/auth'
 import { createOrg, deleteOrgs, getOrgDetail, getOrgTree, updateOrg } from '@/api/upms'
 import type { SysOrgTreeNode } from '@/types/upms'
 
+interface ParentOrgOption {
+  id: number
+  name: string
+  disabled?: boolean
+  children?: ParentOrgOption[]
+}
+
 const authStore = useAuthStore()
 const canCreateOrg = computed(() => authStore.hasPermission('admin:sysOrg:create'))
 const canUpdateOrg = computed(() => authStore.hasPermission('admin:sysOrg:update'))
@@ -150,7 +157,7 @@ const canDeleteOrg = computed(() => authStore.hasPermission('admin:sysOrg:delete
 const formRef = ref<FormInstance>()
 const tableLoading = ref(false)
 const orgList = ref<SysOrgTreeNode[]>([])
-const parentOptions = ref<any[]>([])
+const parentTree = ref<SysOrgTreeNode[]>([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增组织')
 const expandAll = ref(true)
@@ -173,6 +180,22 @@ const createDefaultForm = () => ({
 const form = reactive(createDefaultForm())
 const canSubmitOrgForm = computed(() => (form.id ? canUpdateOrg.value : canCreateOrg.value))
 const hasOrgRowActions = computed(() => canCreateOrg.value || canUpdateOrg.value || canDeleteOrg.value)
+const currentEditingNode = computed(() => (
+  form.id ? findNodeById(parentTree.value, form.id) : null
+))
+const parentOptions = computed<ParentOrgOption[]>(() => [
+  {
+    id: 0,
+    name: '根组织',
+    children: parentTree.value.map((node) => createParentOption(node, currentEditingNode.value)),
+  },
+])
+const parentTreeProps = {
+  value: 'id',
+  label: 'name',
+  children: 'children',
+  disabled: 'disabled',
+}
 
 function warnNoPermission() {
   ElMessage.warning('暂无操作权限')
@@ -186,6 +209,35 @@ const formRules = reactive<FormRules>({
   sort: [{ required: true, message: '请输入排序', trigger: 'blur' }],
 })
 
+function findNodeById(nodes: SysOrgTreeNode[], id: number): SysOrgTreeNode | null {
+  for (const node of nodes) {
+    if (node.id === id) {
+      return node
+    }
+    const matched = node.children?.length ? findNodeById(node.children, id) : null
+    if (matched) {
+      return matched
+    }
+  }
+  return null
+}
+
+function isSameOrDescendantNode(node: SysOrgTreeNode, id: number): boolean {
+  if (node.id === id) {
+    return true
+  }
+  return node.children?.some((child) => isSameOrDescendantNode(child, id)) || false
+}
+
+function createParentOption(node: SysOrgTreeNode, editingNode: SysOrgTreeNode | null): ParentOrgOption {
+  return {
+    id: node.id,
+    name: node.name,
+    disabled: Boolean(editingNode && isSameOrDescendantNode(editingNode, node.id)),
+    children: node.children?.map((child) => createParentOption(child, editingNode)) || [],
+  }
+}
+
 async function loadOrgTree() {
   tableLoading.value = true
   try {
@@ -194,16 +246,14 @@ async function loadOrgTree() {
       status: searchForm.status || undefined,
     })
     orgList.value = response.data
-    parentOptions.value = [
-      {
-        id: 0,
-        name: '根组织',
-        children: response.data,
-      },
-    ]
   } finally {
     tableLoading.value = false
   }
+}
+
+async function loadParentTree() {
+  const response = await getOrgTree()
+  parentTree.value = response.data || []
 }
 
 function resetForm() {
@@ -251,22 +301,53 @@ async function handleEdit(row: SysOrgTreeNode) {
   dialogVisible.value = true
 }
 
+function getDeleteErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return ''
+}
+
+function isUserCancel(error: unknown) {
+  return error === 'cancel' || error === 'close'
+}
+
+function showDeleteError(error: unknown) {
+  const message = getDeleteErrorMessage(error)
+  if (message.includes('子节点')) {
+    ElMessage.warning('该组织存在子组织，请先删除或迁移子组织后再删除')
+    return
+  }
+  if (message.includes('关联')) {
+    ElMessage.warning('该组织已绑定用户，请先解除用户关联后再删除')
+    return
+  }
+  ElMessage.error(message || '删除失败')
+}
+
 async function handleDelete(row: SysOrgTreeNode) {
   if (!canDeleteOrg.value) {
     warnNoPermission()
     return
   }
-  ElMessageBox.confirm('确定要删除该组织吗？删除后该组织下的所有子组织也将被删除', '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    await deleteOrgs([row.id])
+  try {
+    await ElMessageBox.confirm('确定要删除该组织吗？删除前请确认该组织没有子组织且未绑定用户。', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deleteOrgs([row.id], { suppressErrorMessage: true })
     ElMessage.success('删除组织成功')
-    await loadOrgTree()
-  }).catch(() => {
-    // 用户取消
-  })
+    await Promise.all([loadOrgTree(), loadParentTree()])
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 async function handleStatusChange(row: SysOrgTreeNode) {
@@ -305,7 +386,7 @@ async function handleSubmit() {
       parentId: form.parentId,
       sort: form.sort,
       status: form.status,
-      remark: form.remark || undefined,
+      remark: form.remark,
     }
 
     if (form.id) {
@@ -317,7 +398,7 @@ async function handleSubmit() {
     }
 
     dialogVisible.value = false
-    await loadOrgTree()
+    await Promise.all([loadOrgTree(), loadParentTree()])
   } catch {
     // 表单或请求失败时保持弹窗
   }
@@ -346,7 +427,7 @@ function handleDialogClose() {
   resetForm()
 }
 
-void loadOrgTree()
+void Promise.all([loadOrgTree(), loadParentTree()])
 </script>
 
 <style scoped>
