@@ -49,11 +49,22 @@ export function getStorageDetail(id: number) {
   })
 }
 
+export interface DeleteStorageFilesRequest {
+  fileKeys?: string[]
+  ids?: number[]
+}
+
 export function deleteStorageFile(fileKey: string) {
+  return deleteStorageFiles([fileKey])
+}
+
+export function deleteStorageFiles(payload: string[] | DeleteStorageFilesRequest) {
+  const data = Array.isArray(payload) ? { fileKeys: payload } : payload
+
   return request<void>({
     url: '/basic/storage/delete',
     method: 'post',
-    params: { fileKey },
+    data,
   })
 }
 

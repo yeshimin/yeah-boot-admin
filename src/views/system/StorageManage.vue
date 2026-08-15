@@ -45,6 +45,14 @@
         <el-button v-if="canUploadStorage" type="primary" @click="openUploadDialog">
           <el-icon><Upload /></el-icon>上传文件
         </el-button>
+        <el-button
+          v-if="canDeleteStorage"
+          type="danger"
+          :disabled="!hasSelectedStorageFiles"
+          @click="handleBatchDelete"
+        >
+          批量删除
+        </el-button>
         <el-button @click="getStorageList">
           <el-icon><Refresh /></el-icon>刷新
         </el-button>
@@ -58,7 +66,9 @@
         border
         stripe
         style="width: 100%"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column v-if="canDeleteStorage" type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="90" />
         <el-table-column prop="originalName" label="原始文件名" min-width="180" show-overflow-tooltip />
         <el-table-column prop="fileKey" label="文件Key" min-width="220" show-overflow-tooltip />
@@ -209,6 +219,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   deleteStorageFile,
+  deleteStorageFiles,
   downloadStorageFile,
   getStorageDetail,
   queryStorageFiles,
@@ -228,6 +239,7 @@ const dialogVisible = ref(false)
 const detailVisible = ref(false)
 const uploading = ref(false)
 const selectedFile = ref<File | null>(null)
+const selectedStorageFiles = ref<ManagedStorageRecord[]>([])
 const storageList = ref<ManagedStorageRecord[]>([])
 const currentDetail = ref<ManagedStorageRecord | null>(null)
 
@@ -270,6 +282,19 @@ const canUploadStorage = computed(() => authStore.hasPermission('basic:storage:u
 const canViewStorageDetail = computed(() => authStore.hasPermission('basic:storage:crud:detail'))
 const canDownloadStorage = computed(() => authStore.hasPermission('basic:storage:download'))
 const canDeleteStorage = computed(() => authStore.hasPermission('basic:storage:delete'))
+const selectedStorageFileKeys = computed(() => (
+  selectedStorageFiles.value
+    .map((item) => item.fileKey)
+    .filter((fileKey) => fileKey)
+))
+const selectedStorageFileIds = computed(() => (
+  selectedStorageFiles.value
+    .map((item) => item.id)
+    .filter((id) => id > 0)
+))
+const hasSelectedStorageFiles = computed(() => (
+  selectedStorageFileIds.value.length > 0 || selectedStorageFileKeys.value.length > 0
+))
 const hasStorageRowActions = computed(() => (
   canViewStorageDetail.value || canDownloadStorage.value || canDeleteStorage.value
 ))
@@ -393,6 +418,10 @@ async function handleCurrentChange(page: number) {
   await getStorageList()
 }
 
+function handleSelectionChange(selection: ManagedStorageRecord[]) {
+  selectedStorageFiles.value = selection
+}
+
 function triggerFileSelect() {
   if (!canUploadStorage.value) {
     warnNoPermission()
@@ -513,6 +542,36 @@ async function handleDelete(row: ManagedStorageRecord) {
   }).then(async () => {
     await deleteStorageFile(row.fileKey)
     ElMessage.success('删除成功')
+    await getStorageList()
+  }).catch(() => {
+    // 用户取消
+  })
+}
+
+async function handleBatchDelete() {
+  if (!canDeleteStorage.value) {
+    warnNoPermission()
+    return
+  }
+
+  const ids = selectedStorageFileIds.value
+  const fileKeys = selectedStorageFileKeys.value
+  if (ids.length === 0 && fileKeys.length === 0) {
+    ElMessage.warning('请先选择要删除的存储文件')
+    return
+  }
+
+  const selectedCount = selectedStorageFiles.value.length
+  const deletePayload = ids.length === selectedCount ? { ids } : { fileKeys }
+
+  ElMessageBox.confirm(`确定要删除选中的 ${selectedCount} 个存储文件吗？`, '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).then(async () => {
+    await deleteStorageFiles(deletePayload)
+    selectedStorageFiles.value = []
+    ElMessage.success('批量删除成功')
     await getStorageList()
   }).catch(() => {
     // 用户取消

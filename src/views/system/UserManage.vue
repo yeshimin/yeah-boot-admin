@@ -61,11 +61,19 @@
         <div class="action-bar">
           <div class="action-buttons">
             <el-button
-            v-if="canCreateUser"
+              v-if="canCreateUser"
               type="primary"
               @click="handleAddUser"
             >
               <el-icon><Plus /></el-icon>新增用户
+            </el-button>
+            <el-button
+              v-if="canDeleteUser"
+              type="danger"
+              :disabled="!hasSelectedUsers"
+              @click="handleBatchDeleteUsers"
+            >
+              批量删除
             </el-button>
           </div>
         </div>
@@ -78,7 +86,7 @@
             style="width: 100%"
             @selection-change="handleSelectionChange"
           >
-            <el-table-column type="selection" width="55"></el-table-column>
+            <el-table-column v-if="canDeleteUser" type="selection" width="55"></el-table-column>
             <el-table-column prop="username" label="用户名" min-width="120"></el-table-column>
             <el-table-column prop="nickname" label="昵称" min-width="100"></el-table-column>
             <el-table-column prop="orgNames" label="组织" min-width="120"></el-table-column>
@@ -91,16 +99,16 @@
                   v-model="scope.row.status"
                   active-value="1"
                   inactive-value="2"
-              :disabled="!canUpdateUser"
+                  :disabled="!canUpdateUser"
                   @change="handleStatusChange(scope.row)"
                 ></el-switch>
               </template>
             </el-table-column>
             <el-table-column prop="createTime" label="创建时间" min-width="160"></el-table-column>
-        <el-table-column v-if="hasUserRowActions" label="操作" min-width="240" fixed="right">
+            <el-table-column v-if="hasUserRowActions" label="操作" min-width="240" fixed="right">
               <template #default="scope">
                 <el-button
-              v-if="canViewUserDetail"
+                  v-if="canViewUserDetail"
                   type="info"
                   size="small"
                   @click="handleViewUser(scope.row)"
@@ -108,7 +116,7 @@
                   详情
                 </el-button>
                 <el-button
-              v-if="canUpdateUser"
+                  v-if="canUpdateUser"
                   type="primary"
                   size="small"
                   @click="handleEditUser(scope.row)"
@@ -116,7 +124,7 @@
                   编辑
                 </el-button>
                 <el-button
-              v-if="canUpdateUser"
+                  v-if="canUpdateUser"
                   type="success"
                   size="small"
                   @click="handleResetPassword(scope.row)"
@@ -124,7 +132,7 @@
                   重置密码
                 </el-button>
                 <el-button
-              v-if="canDeleteUser"
+                  v-if="canDeleteUser"
                   type="danger"
                   size="small"
                   @click="handleDeleteUser(scope.row)"
@@ -359,6 +367,12 @@ const createDefaultUserForm = () => ({
 // 用户表单数据
 const userForm = reactive(createDefaultUserForm())
 const canSubmitUserForm = computed(() => (userForm.id ? canUpdateUser.value : canCreateUser.value))
+const selectedUserIds = computed(() => (
+  selectedUsers.value
+    .map((item) => Number(item.id))
+    .filter((id) => Number.isFinite(id))
+))
+const hasSelectedUsers = computed(() => selectedUserIds.value.length > 0)
 const hasUserRowActions = computed(() => (
   canViewUserDetail.value || canUpdateUser.value || canDeleteUser.value
 ))
@@ -574,6 +588,32 @@ const handleDeleteUser = async (row: any) => {
   }).then(async () => {
     await deleteUsers([row.id])
     ElMessage.success('删除成功')
+    await getUserList()
+  }).catch(() => {
+    // 取消删除
+  })
+}
+
+const handleBatchDeleteUsers = async () => {
+  if (!canDeleteUser.value) {
+    warnNoPermission()
+    return
+  }
+
+  const ids = selectedUserIds.value
+  if (ids.length === 0) {
+    ElMessage.warning('请先选择要删除的用户')
+    return
+  }
+
+  ElMessageBox.confirm(`确定要删除选中的 ${ids.length} 个用户吗？`, '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).then(async () => {
+    await deleteUsers(ids)
+    selectedUsers.value = []
+    ElMessage.success('批量删除成功')
     await getUserList()
   }).catch(() => {
     // 取消删除

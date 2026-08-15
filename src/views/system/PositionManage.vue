@@ -21,11 +21,19 @@
     <div class="action-bar">
       <div class="action-buttons">
         <el-button
-            v-if="canCreatePosition"
+          v-if="canCreatePosition"
           type="primary"
           @click="handleAddPosition"
         >
           <el-icon><Plus /></el-icon>新增岗位
+        </el-button>
+        <el-button
+          v-if="canDeletePosition"
+          type="danger"
+          :disabled="!hasSelectedPositions"
+          @click="handleBatchDeletePositions"
+        >
+          批量删除
         </el-button>
       </div>
     </div>
@@ -38,7 +46,7 @@
         style="width: 100%"
         @selection-change="handleSelectionChange"
       >
-        <el-table-column type="selection" width="55"></el-table-column>
+        <el-table-column v-if="canDeletePosition" type="selection" width="55"></el-table-column>
         <el-table-column prop="name" label="岗位名称" min-width="120"></el-table-column>
         <el-table-column prop="code" label="岗位编码" min-width="120"></el-table-column>
         <el-table-column prop="sort" label="排序" min-width="80"></el-table-column>
@@ -195,6 +203,12 @@ const positionForm = reactive({
 const canSubmitPositionForm = computed(() => (
   positionForm.id ? canUpdatePosition.value : canCreatePosition.value
 ))
+const selectedPositionIds = computed(() => (
+  selectedPositions.value
+    .map((item) => Number(item.id))
+    .filter((id) => Number.isFinite(id))
+))
+const hasSelectedPositions = computed(() => selectedPositionIds.value.length > 0)
 const hasPositionRowActions = computed(() => canUpdatePosition.value || canDeletePosition.value)
 
 function warnNoPermission() {
@@ -318,6 +332,32 @@ const handleDeletePosition = async (row: any) => {
   }).then(async () => {
     await deletePosts([row.id])
     ElMessage.success('删除成功')
+    await getPositionList()
+  }).catch(() => {
+    // 取消删除
+  })
+}
+
+const handleBatchDeletePositions = async () => {
+  if (!canDeletePosition.value) {
+    warnNoPermission()
+    return
+  }
+
+  const ids = selectedPositionIds.value
+  if (ids.length === 0) {
+    ElMessage.warning('请先选择要删除的岗位')
+    return
+  }
+
+  ElMessageBox.confirm(`确定要删除选中的 ${ids.length} 个岗位吗？`, '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).then(async () => {
+    await deletePosts(ids)
+    selectedPositions.value = []
+    ElMessage.success('批量删除成功')
     await getPositionList()
   }).catch(() => {
     // 取消删除

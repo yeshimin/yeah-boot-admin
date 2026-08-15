@@ -30,6 +30,14 @@
         <el-button v-if="canUploadFile" type="primary" @click="openUploadDialog">
           <el-icon><Upload /></el-icon>上传文件
         </el-button>
+        <el-button
+          v-if="canDeleteFile"
+          type="danger"
+          :disabled="!hasSelectedFiles"
+          @click="handleBatchDelete"
+        >
+          批量删除
+        </el-button>
         <el-button @click="getFileList">
           <el-icon><Refresh /></el-icon>刷新
         </el-button>
@@ -43,7 +51,9 @@
         border
         stripe
         style="width: 100%"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column v-if="canDeleteFile" type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="90" />
         <el-table-column prop="originalName" label="原始文件名" min-width="180" show-overflow-tooltip />
         <el-table-column prop="fileKey" label="文件Key" min-width="220" show-overflow-tooltip />
@@ -163,7 +173,7 @@ import { computed, reactive, ref } from 'vue'
 import { Refresh, Upload } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { deleteFile, downloadFile, getFileDetail, queryFiles, uploadFile } from '@/api/file'
+import { deleteFile, deleteFiles, downloadFile, getFileDetail, queryFiles, uploadFile } from '@/api/file'
 import { useAuthStore } from '@/stores/auth'
 import type { ManagedFileRecord, FileUploadFormModel } from '@/types/file'
 import { buildConditions } from '@/utils/query'
@@ -178,6 +188,7 @@ const dialogVisible = ref(false)
 const detailVisible = ref(false)
 const uploading = ref(false)
 const selectedFile = ref<File | null>(null)
+const selectedFiles = ref<ManagedFileRecord[]>([])
 const fileList = ref<ManagedFileRecord[]>([])
 const currentDetail = ref<ManagedFileRecord | null>(null)
 const STORAGE_TYPE_OPTIONS = [
@@ -212,6 +223,17 @@ const canUploadFile = computed(() => authStore.hasPermission('basic:file:upload'
 const canViewFileDetail = computed(() => authStore.hasPermission('basic:file:crud:detail'))
 const canDownloadFile = computed(() => authStore.hasPermission('basic:file:download'))
 const canDeleteFile = computed(() => authStore.hasPermission('basic:file:delete'))
+const selectedFileKeys = computed(() => (
+  selectedFiles.value
+    .map((item) => item.fileKey)
+    .filter((fileKey) => fileKey)
+))
+const selectedFileIds = computed(() => (
+  selectedFiles.value
+    .map((item) => item.id)
+    .filter((id) => id > 0)
+))
+const hasSelectedFiles = computed(() => selectedFileIds.value.length > 0 || selectedFileKeys.value.length > 0)
 const hasFileRowActions = computed(() => (
   canViewFileDetail.value || canDownloadFile.value || canDeleteFile.value
 ))
@@ -324,6 +346,10 @@ async function handleSizeChange(size: number) {
 async function handleCurrentChange(page: number) {
   pagination.currentPage = page
   await getFileList()
+}
+
+function handleSelectionChange(selection: ManagedFileRecord[]) {
+  selectedFiles.value = selection
 }
 
 function triggerFileSelect() {
@@ -440,6 +466,36 @@ async function handleDelete(row: ManagedFileRecord) {
   }).then(async () => {
     await deleteFile(row.fileKey)
     ElMessage.success('删除文件成功')
+    await getFileList()
+  }).catch(() => {
+    // 用户取消
+  })
+}
+
+async function handleBatchDelete() {
+  if (!canDeleteFile.value) {
+    warnNoPermission()
+    return
+  }
+
+  const ids = selectedFileIds.value
+  const fileKeys = selectedFileKeys.value
+  if (ids.length === 0 && fileKeys.length === 0) {
+    ElMessage.warning('请先选择要删除的文件')
+    return
+  }
+
+  const selectedCount = selectedFiles.value.length
+  const deletePayload = ids.length === selectedCount ? { ids } : { fileKeys }
+
+  ElMessageBox.confirm(`确定要删除选中的 ${selectedCount} 个文件吗？`, '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).then(async () => {
+    await deleteFiles(deletePayload)
+    selectedFiles.value = []
+    ElMessage.success('批量删除成功')
     await getFileList()
   }).catch(() => {
     // 用户取消

@@ -30,11 +30,22 @@ export function uploadFile(payload: { file: File; storageType: string }) {
   })
 }
 
+export interface DeleteFilesRequest {
+  fileKeys?: string[]
+  ids?: number[]
+}
+
 export function deleteFile(fileKey: string) {
+  return deleteFiles([fileKey])
+}
+
+export function deleteFiles(payload: string[] | DeleteFilesRequest) {
+  const data = Array.isArray(payload) ? { fileKeys: payload } : payload
+
   return request<void>({
     url: '/basic/file/delete',
     method: 'post',
-    params: { fileKey },
+    data,
   })
 }
 

@@ -21,11 +21,19 @@
     <div class="action-bar">
       <div class="action-buttons">
         <el-button
-            v-if="canCreateRole"
+          v-if="canCreateRole"
           type="primary"
           @click="handleAddRole"
         >
           <el-icon><Plus /></el-icon>新增角色
+        </el-button>
+        <el-button
+          v-if="canDeleteRole"
+          type="danger"
+          :disabled="!hasSelectedRoles"
+          @click="handleBatchDeleteRoles"
+        >
+          批量删除
         </el-button>
       </div>
     </div>
@@ -38,7 +46,7 @@
         style="width: 100%"
         @selection-change="handleSelectionChange"
       >
-        <el-table-column type="selection" width="55"></el-table-column>
+        <el-table-column v-if="canDeleteRole" type="selection" width="55"></el-table-column>
         <el-table-column prop="code" label="角色编码" min-width="140"></el-table-column>
         <el-table-column prop="name" label="角色名称" min-width="120"></el-table-column>
         <el-table-column prop="remark" label="描述" min-width="200"></el-table-column>
@@ -231,6 +239,12 @@ const roleForm = reactive({
   createTime: ''
 })
 const canSubmitRoleForm = computed(() => (roleForm.id ? canUpdateRole.value : canCreateRole.value))
+const selectedRoleIds = computed(() => (
+  selectedRoles.value
+    .map((item) => Number(item.id))
+    .filter((id) => Number.isFinite(id))
+))
+const hasSelectedRoles = computed(() => selectedRoleIds.value.length > 0)
 const hasRoleRowActions = computed(() => (
   canUpdateRole.value || canAssignRoleResources.value || canDeleteRole.value
 ))
@@ -374,6 +388,32 @@ const handleDeleteRole = async (row: any) => {
   }).then(async () => {
     await deleteRoles([row.id])
     ElMessage.success('删除成功')
+    await getRoleList()
+  }).catch(() => {
+    // 取消删除
+  })
+}
+
+const handleBatchDeleteRoles = async () => {
+  if (!canDeleteRole.value) {
+    warnNoPermission()
+    return
+  }
+
+  const ids = selectedRoleIds.value
+  if (ids.length === 0) {
+    ElMessage.warning('请先选择要删除的角色')
+    return
+  }
+
+  ElMessageBox.confirm(`确定要删除选中的 ${ids.length} 个角色吗？`, '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).then(async () => {
+    await deleteRoles(ids)
+    selectedRoles.value = []
+    ElMessage.success('批量删除成功')
     await getRoleList()
   }).catch(() => {
     // 取消删除
