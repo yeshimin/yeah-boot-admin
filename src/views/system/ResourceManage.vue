@@ -203,6 +203,7 @@ import {
 } from '@/api/upms'
 import type { ResourceTreeNode } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
+import { formatDisabledName, isDisabledStatus } from '@/utils/status'
 
 interface ParentResourceOption {
   id: number
@@ -258,6 +259,7 @@ const resourceTree = ref<ResourceTreeNode[]>([])
 // 弹窗控制
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增资源')
+const lockedDisabledParentId = ref<number | null>(null)
 
 // 资源表单引用
 const resourceFormRef = ref<FormInstance>()
@@ -339,10 +341,19 @@ function createParentOption(
 ): ParentResourceOption {
   return {
     id: node.id,
-    name: node.name,
-    disabled: Boolean(editingNode && isSameOrDescendantNode(editingNode, node.id)),
+    name: formatDisabledName(node.name, node.status),
+    disabled: isDisabledStatus(node.status) || Boolean(editingNode && isSameOrDescendantNode(editingNode, node.id)),
     children: node.children?.map((child) => createParentOption(child, editingNode)) || [],
   }
+}
+
+function resolveLockedDisabledParentId(parentId?: number) {
+  if (!parentId) {
+    return null
+  }
+
+  const parent = findNodeById(resourceTree.value, parentId)
+  return isDisabledStatus(parent?.status) ? parentId : null
 }
 
 const loadParentOptions = async () => {
@@ -436,6 +447,7 @@ const handleEditResource = async (row: any) => {
     status: response.data.status || '1',
     remark: response.data.remark || '',
   })
+  lockedDisabledParentId.value = resolveLockedDisabledParentId(resourceForm.parentId)
   initializingResourceForm.value = false
   dialogVisible.value = true
 }
@@ -523,7 +535,7 @@ const handleSubmitResource = async () => {
     const permissionResource = isActionResourceType(resourceForm.type)
     const payload = {
       id: resourceForm.id || undefined,
-      parentId: resourceForm.parentId ?? 0,
+      parentId: lockedDisabledParentId.value ?? resourceForm.parentId ?? 0,
       name: resourceForm.name,
       type: resourceForm.type,
       path: routeResource ? resourceForm.path : '',
@@ -555,6 +567,7 @@ const handleSubmitResource = async () => {
 // 重置资源表单
 const resetResourceForm = () => {
   initializingResourceForm.value = true
+  lockedDisabledParentId.value = null
   Object.assign(resourceForm, {
     id: 0,
     parentId: 0,
@@ -590,6 +603,26 @@ function normalizeResourceFormByType() {
   resourceForm.linkUrl = ''
   resourceForm.visible = true
 }
+
+watch(
+  () => resourceForm.parentId,
+  (parentId) => {
+    if (
+      initializingResourceForm.value
+      || !dialogVisible.value
+      || !resourceForm.id
+      || lockedDisabledParentId.value === null
+    ) {
+      return
+    }
+    if (parentId === lockedDisabledParentId.value) {
+      return
+    }
+
+    resourceForm.parentId = lockedDisabledParentId.value
+    ElMessage.warning('当前上级资源已禁用，不能变更')
+  },
+)
 
 watch(
   () => resourceForm.type,

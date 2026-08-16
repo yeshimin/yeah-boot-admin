@@ -310,6 +310,8 @@ type SelectOption = {
   disabled?: boolean
 }
 
+type UserRelationKey = 'orgIds' | 'postIds' | 'roleIds'
+
 const authStore = useAuthStore()
 const canCreateUser = computed(() => authStore.hasPermission('admin:sysUser:create'))
 const canViewUserDetail = computed(() => authStore.hasPermission('admin:sysUser:detail'))
@@ -379,6 +381,11 @@ const createDefaultUserForm = () => ({
 
 // 用户表单数据
 const userForm = reactive(createDefaultUserForm())
+const lockedDisabledRelationIds = reactive<Record<UserRelationKey, number[]>>({
+  orgIds: [],
+  postIds: [],
+  roleIds: [],
+})
 const canSubmitUserForm = computed(() => (userForm.id ? canUpdateUser.value : canCreateUser.value))
 const selectedUserIds = computed(() => (
   selectedUsers.value
@@ -478,15 +485,46 @@ const buildUserPayload = () => ({
   mobile: userForm.mobile,
   email: userForm.email,
   gender: userForm.gender || undefined,
-  orgIds: userForm.orgIds,
-  postIds: userForm.postIds,
-  roleIds: userForm.roleIds,
+  orgIds: mergeSelectedIds(userForm.orgIds, lockedDisabledRelationIds.orgIds),
+  postIds: mergeSelectedIds(userForm.postIds, lockedDisabledRelationIds.postIds),
+  roleIds: mergeSelectedIds(userForm.roleIds, lockedDisabledRelationIds.roleIds),
   status: userForm.status,
   remark: userForm.remark,
 })
 
 function joinRelatedNames(items?: Array<{ name?: string; status?: string } | null>) {
   return joinStatusNames(items)
+}
+
+function collectDisabledRelationIds(items?: Array<{ id: number; status?: string } | null>) {
+  return items
+    ?.filter((item): item is { id: number; status?: string } => (
+      item !== null && item !== undefined && isDisabledStatus(item.status)
+    ))
+    .map((item) => item.id) || []
+}
+
+function mergeSelectedIds(selectedIds: number[], lockedIds: number[]) {
+  return Array.from(new Set([...selectedIds, ...lockedIds]))
+}
+
+function syncLockedDisabledRelations(detail?: SysUserVo) {
+  lockedDisabledRelationIds.orgIds = collectDisabledRelationIds(detail?.orgs)
+  lockedDisabledRelationIds.postIds = collectDisabledRelationIds(detail?.posts)
+  lockedDisabledRelationIds.roleIds = collectDisabledRelationIds(detail?.roles)
+}
+
+function ensureLockedSelection(key: UserRelationKey, selectedIds: number[]) {
+  if (!dialogVisible.value || !userForm.id) {
+    return
+  }
+
+  const lockedIds = lockedDisabledRelationIds[key]
+  if (!lockedIds.length || lockedIds.every((id) => selectedIds.includes(id))) {
+    return
+  }
+
+  userForm[key] = mergeSelectedIds(selectedIds, lockedIds)
 }
 
 // 页面加载时获取用户列表
@@ -606,6 +644,7 @@ const handleEditUser = async (row: any) => {
     remark: detail.remark || '',
     createTime: detail.createTime || '',
   })
+  syncLockedDisabledRelations(detail)
   dialogVisible.value = true
 }
 
@@ -779,6 +818,7 @@ const handleSubmitUser = async () => {
 
 // 重置用户表单
 const resetUserForm = () => {
+  syncLockedDisabledRelations()
   Object.assign(userForm, createDefaultUserForm())
   userFormRef.value?.clearValidate()
 }
@@ -811,6 +851,18 @@ const filterTreeNode = (value: string, data: SysOrgTreeNode) => {
 watch(treeFilterText, (value) => {
   orgTreeRef.value?.filter(value)
 })
+
+watch(() => userForm.orgIds, (value) => {
+  ensureLockedSelection('orgIds', value)
+}, { deep: true })
+
+watch(() => userForm.postIds, (value) => {
+  ensureLockedSelection('postIds', value)
+}, { deep: true })
+
+watch(() => userForm.roleIds, (value) => {
+  ensureLockedSelection('roleIds', value)
+}, { deep: true })
 </script>
 
 <style scoped>

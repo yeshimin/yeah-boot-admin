@@ -135,13 +135,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { Plus, Sort } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { createOrg, deleteOrgs, getOrgDetail, getOrgTree, updateOrg } from '@/api/upms'
 import type { SysOrgTreeNode } from '@/types/upms'
+import { formatDisabledName, isDisabledStatus } from '@/utils/status'
 
 interface ParentOrgOption {
   id: number
@@ -162,6 +163,7 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('新增组织')
 const expandAll = ref(true)
 const refreshTable = ref(true)
+const lockedDisabledParentId = ref<number | null>(null)
 
 const searchForm = reactive({
   name: '',
@@ -232,10 +234,19 @@ function isSameOrDescendantNode(node: SysOrgTreeNode, id: number): boolean {
 function createParentOption(node: SysOrgTreeNode, editingNode: SysOrgTreeNode | null): ParentOrgOption {
   return {
     id: node.id,
-    name: node.name,
-    disabled: Boolean(editingNode && isSameOrDescendantNode(editingNode, node.id)),
+    name: formatDisabledName(node.name, node.status),
+    disabled: isDisabledStatus(node.status) || Boolean(editingNode && isSameOrDescendantNode(editingNode, node.id)),
     children: node.children?.map((child) => createParentOption(child, editingNode)) || [],
   }
+}
+
+function resolveLockedDisabledParentId(parentId?: number) {
+  if (!parentId) {
+    return null
+  }
+
+  const parent = findNodeById(parentTree.value, parentId)
+  return isDisabledStatus(parent?.status) ? parentId : null
 }
 
 async function loadOrgTree() {
@@ -257,6 +268,7 @@ async function loadParentTree() {
 }
 
 function resetForm() {
+  lockedDisabledParentId.value = null
   Object.assign(form, createDefaultForm())
   formRef.value?.clearValidate()
 }
@@ -274,6 +286,10 @@ function handleAddRoot() {
 function handleAddChild(row?: SysOrgTreeNode) {
   if (!canCreateOrg.value) {
     warnNoPermission()
+    return
+  }
+  if (row && isDisabledStatus(row.status)) {
+    ElMessage.warning('禁用组织不能作为上级组织')
     return
   }
   resetForm()
@@ -297,6 +313,7 @@ async function handleEdit(row: SysOrgTreeNode) {
     status: response.data.status || '1',
     remark: response.data.remark || '',
   })
+  lockedDisabledParentId.value = resolveLockedDisabledParentId(form.parentId)
   dialogTitle.value = '编辑组织'
   dialogVisible.value = true
 }
@@ -383,7 +400,7 @@ async function handleSubmit() {
     const payload = {
       id: form.id || undefined,
       name: form.name,
-      parentId: form.parentId,
+      parentId: lockedDisabledParentId.value ?? form.parentId,
       sort: form.sort,
       status: form.status,
       remark: form.remark,
@@ -426,6 +443,18 @@ async function toggleExpandAll() {
 function handleDialogClose() {
   resetForm()
 }
+
+watch(() => form.parentId, (parentId) => {
+  if (!dialogVisible.value || !form.id || lockedDisabledParentId.value === null) {
+    return
+  }
+  if (parentId === lockedDisabledParentId.value) {
+    return
+  }
+
+  form.parentId = lockedDisabledParentId.value
+  ElMessage.warning('当前上级组织已禁用，不能变更')
+})
 
 void Promise.all([loadOrgTree(), loadParentTree()])
 </script>
