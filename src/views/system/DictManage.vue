@@ -162,7 +162,7 @@
       v-model="dialogVisible"
       :title="dialogTitle"
       width="560px"
-      @close="handleDialogClose"
+      @closed="handleDialogClose"
     >
       <el-form
         ref="formRef"

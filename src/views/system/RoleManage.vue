@@ -111,7 +111,7 @@
       v-model="dialogVisible"
       :title="dialogTitle"
       width="500px"
-      @close="handleDialogClose"
+      @closed="handleDialogClose"
     >
       <el-form
         ref="roleFormRef"
@@ -150,7 +150,7 @@
       v-model="permissionDialogVisible"
       title="分配权限"
       width="600px"
-      @close="handlePermissionDialogClose"
+      @closed="handlePermissionDialogClose"
     >
       <div class="permission-tree-container">
         <el-tree

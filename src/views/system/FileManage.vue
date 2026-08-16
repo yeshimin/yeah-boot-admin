@@ -114,7 +114,7 @@
       v-model="dialogVisible"
       title="上传文件"
       width="520px"
-      @close="handleDialogClose"
+      @closed="handleDialogClose"
     >
       <el-form ref="uploadFormRef" :model="uploadForm" :rules="uploadRules" label-width="100px">
         <el-form-item label="存储类型" prop="storageType">
@@ -414,7 +414,6 @@ async function handleUpload() {
       storageType: uploadForm.storageType.trim(),
     })
     dialogVisible.value = false
-    resetUploadForm()
     ElMessage.success('文件上传成功')
     await getFileList()
   } finally {
