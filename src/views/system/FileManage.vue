@@ -249,6 +249,25 @@ function clearSelectedFiles() {
   fileTableRef.value?.clearSelection()
 }
 
+function getOperationErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return ''
+}
+
+function isUserCancel(error: unknown) {
+  return error === 'cancel' || error === 'close'
+}
+
+function showDeleteError(error: unknown) {
+  const message = getOperationErrorMessage(error)
+  ElMessage.error(message || '删除文件失败')
+}
+
 function toNumber(...values: unknown[]) {
   for (const value of values) {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -466,17 +485,21 @@ async function handleDelete(row: ManagedFileRecord) {
     return
   }
 
-  ElMessageBox.confirm('确定要删除该文件吗？', '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    await deleteFile(row.fileKey)
+  try {
+    await ElMessageBox.confirm('确定要删除该文件吗？', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deleteFile(row.fileKey, { suppressErrorMessage: true })
     ElMessage.success('删除文件成功')
     await getFileList()
-  }).catch(() => {
-    // 用户取消
-  })
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 async function handleBatchDelete() {
@@ -495,18 +518,22 @@ async function handleBatchDelete() {
   const selectedCount = selectedFiles.value.length
   const deletePayload = ids.length === selectedCount ? { ids } : { fileKeys }
 
-  ElMessageBox.confirm(`确定要删除选中的 ${selectedCount} 个文件吗？`, '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    await deleteFiles(deletePayload)
+  try {
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedCount} 个文件吗？`, '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deleteFiles(deletePayload, { suppressErrorMessage: true })
     clearSelectedFiles()
     ElMessage.success('批量删除成功')
     await getFileList()
-  }).catch(() => {
-    // 用户取消
-  })
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 function formatStorageType(value?: number) {

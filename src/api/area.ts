@@ -35,11 +35,12 @@ export function updateProvince(data: Record<string, unknown>) {
   })
 }
 
-export function deleteProvinces(ids: number[]) {
+export function deleteProvinces(ids: number[], options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/area/province/crud/delete',
     method: 'post',
     data: ids,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -75,11 +76,12 @@ export function updateCity(data: Record<string, unknown>) {
   })
 }
 
-export function deleteCities(ids: number[]) {
+export function deleteCities(ids: number[], options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/area/city/crud/delete',
     method: 'post',
     data: ids,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -115,10 +117,11 @@ export function updateDistrict(data: Record<string, unknown>) {
   })
 }
 
-export function deleteDistricts(ids: number[]) {
+export function deleteDistricts(ids: number[], options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/area/district/crud/delete',
     method: 'post',
     data: ids,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }

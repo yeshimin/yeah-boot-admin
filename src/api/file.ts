@@ -35,17 +35,18 @@ export interface DeleteFilesRequest {
   ids?: number[]
 }
 
-export function deleteFile(fileKey: string) {
-  return deleteFiles([fileKey])
+export function deleteFile(fileKey: string, options?: { suppressErrorMessage?: boolean }) {
+  return deleteFiles([fileKey], options)
 }
 
-export function deleteFiles(payload: string[] | DeleteFilesRequest) {
+export function deleteFiles(payload: string[] | DeleteFilesRequest, options?: { suppressErrorMessage?: boolean }) {
   const data = Array.isArray(payload) ? { fileKeys: payload } : payload
 
   return request<void>({
     url: '/basic/file/delete',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 

@@ -350,6 +350,11 @@ function showDeleteError(error: unknown) {
   ElMessage.error(message || '删除失败')
 }
 
+function showStatusUpdateError(error: unknown) {
+  const message = getDeleteErrorMessage(error)
+  ElMessage.error(message || '岗位状态更新失败')
+}
+
 // 删除岗位
 const handleDeletePosition = async (row: any) => {
   if (!canDeletePosition.value) {
@@ -427,13 +432,14 @@ const handleStatusChange = async (row: any) => {
     await updatePost({
       id: row.id,
       status: nextStatus,
-    })
+    }, { suppressErrorMessage: true })
     ElMessage.success(`岗位${nextStatus === '1' ? '启用' : '禁用'}成功`)
   } catch (error) {
     row.status = previousStatus
     if (isUserCancel(error)) {
       return
     }
+    showStatusUpdateError(error)
   }
 }
 

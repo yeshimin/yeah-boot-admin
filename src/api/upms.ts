@@ -104,11 +104,12 @@ export function createRole(data: Record<string, unknown>) {
   })
 }
 
-export function updateRole(data: Record<string, unknown>) {
+export function updateRole(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysRole/update',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -153,11 +154,12 @@ export function createResource(data: Record<string, unknown>) {
   })
 }
 
-export function updateResource(data: Record<string, unknown>) {
+export function updateResource(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysRes/update',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -194,11 +196,12 @@ export function createPost(data: Record<string, unknown>) {
   })
 }
 
-export function updatePost(data: Record<string, unknown>) {
+export function updatePost(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysPost/update',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -251,11 +254,12 @@ export function createOrg(data: Record<string, unknown>) {
   })
 }
 
-export function updateOrg(data: Record<string, unknown>) {
+export function updateOrg(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysOrg/update',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 

@@ -345,6 +345,11 @@ function showDeleteError(error: unknown) {
   ElMessage.error(message || '删除失败')
 }
 
+function showStatusUpdateError(error: unknown) {
+  const message = getDeleteErrorMessage(error)
+  ElMessage.error(message || '组织状态更新失败')
+}
+
 async function handleDelete(row: SysOrgTreeNode) {
   if (!canDeleteOrg.value) {
     warnNoPermission()
@@ -390,13 +395,14 @@ async function handleStatusChange(row: SysOrgTreeNode) {
     await updateOrg({
       id: row.id,
       status: nextStatus,
-    })
+    }, { suppressErrorMessage: true })
     ElMessage.success(`组织${nextStatus === '1' ? '启用' : '禁用'}成功`)
   } catch (error) {
     row.status = previousStatus
     if (isUserCancel(error)) {
       return
     }
+    showStatusUpdateError(error)
   }
 }
 

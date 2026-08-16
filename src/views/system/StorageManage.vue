@@ -311,6 +311,25 @@ function clearSelectedStorageFiles() {
   storageTableRef.value?.clearSelection()
 }
 
+function getOperationErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return ''
+}
+
+function isUserCancel(error: unknown) {
+  return error === 'cancel' || error === 'close'
+}
+
+function showDeleteError(error: unknown) {
+  const message = getOperationErrorMessage(error)
+  ElMessage.error(message || '删除存储文件失败')
+}
+
 function toNumber(...values: unknown[]) {
   for (const value of values) {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -543,17 +562,21 @@ async function handleDelete(row: ManagedStorageRecord) {
     return
   }
 
-  ElMessageBox.confirm('确定要删除该存储文件吗？', '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    await deleteStorageFile(row.fileKey)
+  try {
+    await ElMessageBox.confirm('确定要删除该存储文件吗？', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deleteStorageFile(row.fileKey, { suppressErrorMessage: true })
     ElMessage.success('删除成功')
     await getStorageList()
-  }).catch(() => {
-    // 用户取消
-  })
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 async function handleBatchDelete() {
@@ -572,18 +595,22 @@ async function handleBatchDelete() {
   const selectedCount = selectedStorageFiles.value.length
   const deletePayload = ids.length === selectedCount ? { ids } : { fileKeys }
 
-  ElMessageBox.confirm(`确定要删除选中的 ${selectedCount} 个存储文件吗？`, '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    await deleteStorageFiles(deletePayload)
+  try {
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedCount} 个存储文件吗？`, '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deleteStorageFiles(deletePayload, { suppressErrorMessage: true })
     clearSelectedStorageFiles()
     ElMessage.success('批量删除成功')
     await getStorageList()
-  }).catch(() => {
-    // 用户取消
-  })
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error)
+  }
 }
 
 function formatStorageType(value?: number) {

@@ -58,17 +58,18 @@ export interface DeleteStorageFilesRequest {
   ids?: number[]
 }
 
-export function deleteStorageFile(fileKey: string) {
-  return deleteStorageFiles([fileKey])
+export function deleteStorageFile(fileKey: string, options?: { suppressErrorMessage?: boolean }) {
+  return deleteStorageFiles([fileKey], options)
 }
 
-export function deleteStorageFiles(payload: string[] | DeleteStorageFilesRequest) {
+export function deleteStorageFiles(payload: string[] | DeleteStorageFilesRequest, options?: { suppressErrorMessage?: boolean }) {
   const data = Array.isArray(payload) ? { fileKeys: payload } : payload
 
   return request<void>({
     url: '/basic/storage/delete',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 

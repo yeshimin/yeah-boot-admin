@@ -440,7 +440,9 @@ function showDeleteError(error: unknown) {
   const message = getDeleteErrorMessage(error)
   if (message) {
     ElMessage.error(message)
+    return
   }
+  ElMessage.error('删除字典失败')
 }
 
 async function executeDelete(row: SysDictTreeNode, force: boolean, suppressErrorMessage = false) {
@@ -466,11 +468,12 @@ async function confirmForceDelete(row: SysDictTreeNode) {
         confirmButtonClass: 'el-button--danger',
       },
     )
-    await executeDelete(row, true)
+    await executeDelete(row, true, true)
   } catch (error) {
     if (isUserCancel(error)) {
       return
     }
+    showDeleteError(error)
   }
 }
 

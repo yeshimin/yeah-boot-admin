@@ -504,6 +504,30 @@ function warnNoPermission() {
   ElMessage.warning('暂无操作权限')
 }
 
+function getOperationErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return ''
+}
+
+function isUserCancel(error: unknown) {
+  return error === 'cancel' || error === 'close'
+}
+
+function showDeleteError(error: unknown, level: AreaNodeLevel) {
+  const areaName = level === 1 ? '省份' : level === 2 ? '城市' : '区县'
+  const message = getOperationErrorMessage(error)
+  if (message.includes('子节点') || message.includes('下级')) {
+    ElMessage.warning(`该${areaName}存在下级区域，请先删除或迁移下级区域后再删除`)
+    return
+  }
+  ElMessage.error(message || `删除${areaName}失败`)
+}
+
 type ParentTreeOption = {
   id: string
   name: string
@@ -770,19 +794,20 @@ async function handleDelete(node: AreaTreeNode) {
     warnNoPermission()
     return
   }
-  ElMessageBox.confirm(`确定要删除该${node.level === 1 ? '省份' : node.level === 2 ? '城市' : '区县'}吗？`, '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
+  try {
+    await ElMessageBox.confirm(`确定要删除该${node.level === 1 ? '省份' : node.level === 2 ? '城市' : '区县'}吗？`, '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
     if (node.level === 1) {
-      await deleteProvinces([node.id])
+      await deleteProvinces([node.id], { suppressErrorMessage: true })
       ElMessage.success('删除省份成功')
     } else if (node.level === 2) {
-      await deleteCities([node.id])
+      await deleteCities([node.id], { suppressErrorMessage: true })
       ElMessage.success('删除城市成功')
     } else {
-      await deleteDistricts([node.id])
+      await deleteDistricts([node.id], { suppressErrorMessage: true })
       ElMessage.success('删除区县成功')
     }
 
@@ -792,9 +817,12 @@ async function handleDelete(node: AreaTreeNode) {
       tableRows.value = []
     }
     await loadAreaTree()
-  }).catch(() => {
-    // 用户取消
-  })
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+    showDeleteError(error, node.level)
+  }
 }
 
 async function handleSubmit() {

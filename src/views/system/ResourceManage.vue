@@ -479,6 +479,11 @@ function showDeleteError(error: unknown) {
   ElMessage.error(message || '删除失败')
 }
 
+function showStatusUpdateError(error: unknown) {
+  const message = getDeleteErrorMessage(error)
+  ElMessage.error(message || '资源状态更新失败')
+}
+
 // 删除资源
 const handleDeleteResource = async (row: any) => {
   if (!canDeleteResource.value) {
@@ -526,13 +531,14 @@ const handleStatusChange = async (row: any) => {
     await updateResource({
       id: row.id,
       status: nextStatus,
-    })
+    }, { suppressErrorMessage: true })
     ElMessage.success(`资源${nextStatus === '1' ? '启用' : '禁用'}成功`)
   } catch (error) {
     row.status = previousStatus
     if (isUserCancel(error)) {
       return
     }
+    showStatusUpdateError(error)
   }
 }
 
