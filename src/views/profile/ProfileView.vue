@@ -185,6 +185,7 @@ import { useAuthStore } from '@/stores/auth'
 import type { UpdateMineRequest } from '@/types/upms'
 import { DEFAULT_AVATAR_URL, normalizeAvatarValue, resolveAvatarUrl } from '@/utils/avatar'
 import { sha256Hex } from '@/utils/crypto'
+import { formatDisabledName, joinStatusNames } from '@/utils/status'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -203,9 +204,12 @@ const defaultAvatar = DEFAULT_AVATAR_URL
 const maxAvatarSizeInMb = 5
 
 const user = computed(() => authStore.mine?.user || null)
-const primaryRoleName = computed(() => authStore.mine?.roles?.[0]?.name || '')
-const roleNamesText = computed(() => authStore.mine?.roles?.map((item) => item.name).join('、') || '-')
-const orgNamesText = computed(() => authStore.mine?.orgs?.map((item) => item.name).join('、') || '-')
+const primaryRoleName = computed(() => {
+  const role = authStore.mine?.roles?.[0]
+  return role ? formatDisabledName(role.name, role.status) : ''
+})
+const roleNamesText = computed(() => joinStatusNames(authStore.mine?.roles))
+const orgNamesText = computed(() => joinStatusNames(authStore.mine?.orgs))
 
 const profileForm = reactive({
   nickname: '',

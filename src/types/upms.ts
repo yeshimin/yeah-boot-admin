@@ -1,6 +1,7 @@
 export interface IdNameVo {
   id: number
   name: string
+  status?: string
 }
 
 export interface LoginRequest {

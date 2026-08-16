@@ -189,16 +189,14 @@ import {
 } from '@/api/upms'
 import type { ResourceTreeNode } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
-
-const DATA_STATUS_DISABLED = '2'
-const DISABLED_SUFFIX = '（禁用）'
+import { formatDisabledName, isDisabledStatus } from '@/utils/status'
 
 function isDisabledResource(data: ResourceTreeNode) {
-  return data.status === DATA_STATUS_DISABLED
+  return isDisabledStatus(data.status)
 }
 
 function formatResourceTreeLabel(data: ResourceTreeNode) {
-  return isDisabledResource(data) ? `${data.name}${DISABLED_SUFFIX}` : data.name
+  return formatDisabledName(data.name, data.status)
 }
 
 const authStore = useAuthStore()

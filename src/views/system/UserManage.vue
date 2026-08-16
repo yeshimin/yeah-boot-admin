@@ -263,13 +263,13 @@
           {{ currentUserDetail.status === '1' ? '启用' : '禁用' }}
         </el-descriptions-item>
         <el-descriptions-item label="组织">
-          {{ currentUserDetail.orgs?.map((item) => item.name).join('、') || '-' }}
+          {{ joinRelatedNames(currentUserDetail.orgs) }}
         </el-descriptions-item>
         <el-descriptions-item label="岗位">
-          {{ currentUserDetail.posts?.map((item) => item.name).join('、') || '-' }}
+          {{ joinRelatedNames(currentUserDetail.posts) }}
         </el-descriptions-item>
         <el-descriptions-item label="角色" :span="2">
-          {{ currentUserDetail.roles?.map((item) => item.name).join('、') || '-' }}
+          {{ joinRelatedNames(currentUserDetail.roles) }}
         </el-descriptions-item>
         <el-descriptions-item label="创建时间" :span="2">
           {{ currentUserDetail.createTime || '-' }}
@@ -301,23 +301,13 @@ import {
 } from '@/api/upms'
 import type { SysOrgTreeNode, SysUserVo } from '@/types/upms'
 import { sha256Hex } from '@/utils/crypto'
-
-const DATA_STATUS_DISABLED = '2'
-const DISABLED_SUFFIX = '（禁用）'
+import { formatDisabledName, isDisabledStatus, joinStatusNames } from '@/utils/status'
 
 type SelectOption = {
   id: number
   name: string
   status?: string
   disabled?: boolean
-}
-
-function isDisabledStatus(status?: string) {
-  return status === DATA_STATUS_DISABLED
-}
-
-function formatDisabledName(name: string, status?: string) {
-  return isDisabledStatus(status) ? `${name}${DISABLED_SUFFIX}` : name
 }
 
 const authStore = useAuthStore()
@@ -495,11 +485,8 @@ const buildUserPayload = () => ({
   remark: userForm.remark,
 })
 
-function joinRelatedNames(items?: Array<{ name?: string } | null>) {
-  const names = items
-    ?.map((item) => item?.name)
-    .filter((name): name is string => Boolean(name))
-  return names?.length ? names.join('、') : '-'
+function joinRelatedNames(items?: Array<{ name?: string; status?: string } | null>) {
+  return joinStatusNames(items)
 }
 
 // 页面加载时获取用户列表
