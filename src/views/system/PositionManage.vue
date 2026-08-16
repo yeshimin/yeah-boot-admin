@@ -109,6 +109,9 @@
       v-model="dialogVisible"
       :title="dialogTitle"
       width="500px"
+      :close-on-click-modal="!positionFormSubmitting"
+      :close-on-press-escape="!positionFormSubmitting"
+      :show-close="!positionFormSubmitting"
       @closed="handleDialogClose"
     >
       <el-form
@@ -140,8 +143,15 @@
       </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button v-if="canSubmitPositionForm" type="primary" @click="handleSubmitPosition">确定</el-button>
+          <el-button :disabled="positionFormSubmitting" @click="dialogVisible = false">取消</el-button>
+          <el-button
+            v-if="canSubmitPositionForm"
+            type="primary"
+            :loading="positionFormSubmitting"
+            @click="handleSubmitPosition"
+          >
+            确定
+          </el-button>
         </span>
       </template>
     </el-dialog>
@@ -188,6 +198,7 @@ const positionList = ref<any[]>([])
 // 弹窗控制
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增岗位')
+const positionFormSubmitting = ref(false)
 
 // 岗位表单引用
 const positionFormRef = ref<FormInstance>()
@@ -328,7 +339,21 @@ const handleEditPosition = async (row: any) => {
 }
 
 function getDeleteErrorMessage(error: unknown) {
+  const responseMessage = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
+  if (responseMessage) {
+    return responseMessage
+  }
+  const responseStatus = (error as { response?: { status?: number } } | undefined)?.response?.status
+  if (responseStatus) {
+    return `系统接口 ${responseStatus} 异常`
+  }
   if (error instanceof Error) {
+    if (error.message.includes('Network Error')) {
+      return '后端接口连接异常'
+    }
+    if (error.message.includes('timeout')) {
+      return '系统接口请求超时'
+    }
     return error.message
   }
   if (typeof error === 'string') {
@@ -353,6 +378,14 @@ function showDeleteError(error: unknown) {
 function showStatusUpdateError(error: unknown) {
   const message = getDeleteErrorMessage(error)
   ElMessage.error(message || '岗位状态更新失败')
+}
+
+function showSubmitError(error: unknown, fallbackMessage: string) {
+  const message = getDeleteErrorMessage(error)
+  if (!message) {
+    return
+  }
+  ElMessage.error(message || fallbackMessage)
 }
 
 // 删除岗位
@@ -445,11 +478,16 @@ const handleStatusChange = async (row: any) => {
 
 // 提交岗位表单
 const handleSubmitPosition = async () => {
+  if (positionFormSubmitting.value) {
+    return
+  }
   if (!canSubmitPositionForm.value) {
     warnNoPermission()
     return
   }
   if (!positionFormRef.value) return
+  const fallbackMessage = positionForm.id ? '编辑岗位失败' : '新增岗位失败'
+  positionFormSubmitting.value = true
   try {
     await positionFormRef.value.validate()
     const payload = {
@@ -462,16 +500,18 @@ const handleSubmitPosition = async () => {
     }
 
     if (positionForm.id) {
-      await updatePost(payload)
+      await updatePost(payload, { suppressErrorMessage: true })
       ElMessage.success('编辑岗位成功')
     } else {
-      await createPost(payload)
+      await createPost(payload, { suppressErrorMessage: true })
       ElMessage.success('新增岗位成功')
     }
     dialogVisible.value = false
     await getPositionList()
   } catch (error) {
-    console.log('表单验证失败', error)
+    showSubmitError(error, fallbackMessage)
+  } finally {
+    positionFormSubmitting.value = false
   }
 }
 

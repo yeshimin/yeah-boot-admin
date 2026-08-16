@@ -147,6 +147,9 @@
       v-model="dialogVisible"
       :title="dialogTitle"
       width="560px"
+      :close-on-click-modal="!formSubmitting"
+      :close-on-press-escape="!formSubmitting"
+      :show-close="!formSubmitting"
       @closed="handleDialogClose"
     >
       <el-form
@@ -179,8 +182,15 @@
       </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button v-if="canSubmitAreaForm" type="primary" @click="handleSubmit">确定</el-button>
+          <el-button :disabled="formSubmitting" @click="dialogVisible = false">取消</el-button>
+          <el-button
+            v-if="canSubmitAreaForm"
+            type="primary"
+            :loading="formSubmitting"
+            @click="handleSubmit"
+          >
+            确定
+          </el-button>
         </span>
       </template>
     </el-dialog>
@@ -239,6 +249,7 @@ const detailLoading = ref(false)
 const childLoading = ref(false)
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增')
+const formSubmitting = ref(false)
 const editingLevel = ref<AreaNodeLevel>(1)
 const dialogMode = ref<'create' | 'edit'>('create')
 let currentContextRequestId = 0
@@ -505,7 +516,21 @@ function warnNoPermission() {
 }
 
 function getOperationErrorMessage(error: unknown) {
+  const responseMessage = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
+  if (responseMessage) {
+    return responseMessage
+  }
+  const responseStatus = (error as { response?: { status?: number } } | undefined)?.response?.status
+  if (responseStatus) {
+    return `系统接口 ${responseStatus} 异常`
+  }
   if (error instanceof Error) {
+    if (error.message.includes('Network Error')) {
+      return '后端接口连接异常'
+    }
+    if (error.message.includes('timeout')) {
+      return '系统接口请求超时'
+    }
     return error.message
   }
   if (typeof error === 'string') {
@@ -526,6 +551,14 @@ function showDeleteError(error: unknown, level: AreaNodeLevel) {
     return
   }
   ElMessage.error(message || `删除${areaName}失败`)
+}
+
+function showSubmitError(error: unknown, fallbackMessage: string) {
+  const message = getOperationErrorMessage(error)
+  if (!message) {
+    return
+  }
+  ElMessage.error(message || fallbackMessage)
 }
 
 type ParentTreeOption = {
@@ -826,6 +859,9 @@ async function handleDelete(node: AreaTreeNode) {
 }
 
 async function handleSubmit() {
+  if (formSubmitting.value) {
+    return
+  }
   if (!canSubmitAreaForm.value) {
     warnNoPermission()
     return
@@ -834,10 +870,14 @@ async function handleSubmit() {
     return
   }
 
+  let fallbackMessage = '保存地区失败'
+  formSubmitting.value = true
   try {
     await formRef.value.validate()
 
     const submitLevel = resolveFormSubmitLevel()
+    const areaName = submitLevel === 1 ? '省份' : submitLevel === 2 ? '城市' : '区县'
+    fallbackMessage = `${form.id ? '编辑' : '新增'}${areaName}失败`
 
     if (submitLevel === 1) {
       const payload = {
@@ -848,10 +888,10 @@ async function handleSubmit() {
       }
 
       if (form.id) {
-        await updateProvince(payload)
+        await updateProvince(payload, { suppressErrorMessage: true })
         ElMessage.success('编辑省份成功')
       } else {
-        await createProvince(payload)
+        await createProvince(payload, { suppressErrorMessage: true })
         ElMessage.success('新增省份成功')
       }
     } else if (submitLevel === 2) {
@@ -863,10 +903,10 @@ async function handleSubmit() {
       }
 
       if (form.id) {
-        await updateCity(payload)
+        await updateCity(payload, { suppressErrorMessage: true })
         ElMessage.success('编辑城市成功')
       } else {
-        await createCity(payload)
+        await createCity(payload, { suppressErrorMessage: true })
         ElMessage.success('新增城市成功')
       }
     } else {
@@ -878,18 +918,20 @@ async function handleSubmit() {
       }
 
       if (form.id) {
-        await updateDistrict(payload)
+        await updateDistrict(payload, { suppressErrorMessage: true })
         ElMessage.success('编辑区县成功')
       } else {
-        await createDistrict(payload)
+        await createDistrict(payload, { suppressErrorMessage: true })
         ElMessage.success('新增区县成功')
       }
     }
 
     dialogVisible.value = false
     await loadAreaTree()
-  } catch {
-    // 表单校验失败或请求失败时保持当前弹窗
+  } catch (error) {
+    showSubmitError(error, fallbackMessage)
+  } finally {
+    formSubmitting.value = false
   }
 }
 

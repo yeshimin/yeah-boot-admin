@@ -98,6 +98,9 @@
       v-model="dialogVisible"
       :title="dialogTitle"
       width="640px"
+      :close-on-click-modal="!resourceFormSubmitting"
+      :close-on-press-escape="!resourceFormSubmitting"
+      :show-close="!resourceFormSubmitting"
       @closed="handleDialogClose"
     >
       <el-form
@@ -178,8 +181,15 @@
       </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button v-if="canSubmitResourceForm" type="primary" @click="handleSubmitResource">确定</el-button>
+          <el-button :disabled="resourceFormSubmitting" @click="dialogVisible = false">取消</el-button>
+          <el-button
+            v-if="canSubmitResourceForm"
+            type="primary"
+            :loading="resourceFormSubmitting"
+            @click="handleSubmitResource"
+          >
+            确定
+          </el-button>
         </span>
       </template>
     </el-dialog>
@@ -259,6 +269,7 @@ const resourceTree = ref<ResourceTreeNode[]>([])
 // 弹窗控制
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增资源')
+const resourceFormSubmitting = ref(false)
 const lockedDisabledParentId = ref<number | null>(null)
 
 // 资源表单引用
@@ -453,7 +464,21 @@ const handleEditResource = async (row: any) => {
 }
 
 function getDeleteErrorMessage(error: unknown) {
+  const responseMessage = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
+  if (responseMessage) {
+    return responseMessage
+  }
+  const responseStatus = (error as { response?: { status?: number } } | undefined)?.response?.status
+  if (responseStatus) {
+    return `系统接口 ${responseStatus} 异常`
+  }
   if (error instanceof Error) {
+    if (error.message.includes('Network Error')) {
+      return '后端接口连接异常'
+    }
+    if (error.message.includes('timeout')) {
+      return '系统接口请求超时'
+    }
     return error.message
   }
   if (typeof error === 'string') {
@@ -482,6 +507,14 @@ function showDeleteError(error: unknown) {
 function showStatusUpdateError(error: unknown) {
   const message = getDeleteErrorMessage(error)
   ElMessage.error(message || '资源状态更新失败')
+}
+
+function showSubmitError(error: unknown, fallbackMessage: string) {
+  const message = getDeleteErrorMessage(error)
+  if (!message) {
+    return
+  }
+  ElMessage.error(message || fallbackMessage)
 }
 
 // 删除资源
@@ -544,11 +577,16 @@ const handleStatusChange = async (row: any) => {
 
 // 提交资源表单
 const handleSubmitResource = async () => {
+  if (resourceFormSubmitting.value) {
+    return
+  }
   if (!canSubmitResourceForm.value) {
     warnNoPermission()
     return
   }
   if (!resourceFormRef.value) return
+  const fallbackMessage = resourceForm.id ? '编辑资源失败' : '新增资源失败'
+  resourceFormSubmitting.value = true
   try {
     await resourceFormRef.value.validate()
     const routeResource = isMenuResourceType(resourceForm.type)
@@ -571,16 +609,18 @@ const handleSubmitResource = async () => {
     }
 
     if (resourceForm.id) {
-      await updateResource(payload)
+      await updateResource(payload, { suppressErrorMessage: true })
       ElMessage.success('编辑资源成功')
     } else {
-      await createResource(payload)
+      await createResource(payload, { suppressErrorMessage: true })
       ElMessage.success('新增资源成功')
     }
     dialogVisible.value = false
     await Promise.all([loadParentOptions(), getResourceList()])
   } catch (error) {
-    console.log('表单验证失败', error)
+    showSubmitError(error, fallbackMessage)
+  } finally {
+    resourceFormSubmitting.value = false
   }
 }
 

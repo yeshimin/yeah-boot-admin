@@ -162,6 +162,9 @@
       v-model="dialogVisible"
       :title="dialogTitle"
       width="560px"
+      :close-on-click-modal="!formSubmitting"
+      :close-on-press-escape="!formSubmitting"
+      :show-close="!formSubmitting"
       @closed="handleDialogClose"
     >
       <el-form
@@ -205,8 +208,15 @@
       </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button v-if="canSubmitDictForm" type="primary" @click="handleSubmit">确定</el-button>
+          <el-button :disabled="formSubmitting" @click="dialogVisible = false">取消</el-button>
+          <el-button
+            v-if="canSubmitDictForm"
+            type="primary"
+            :loading="formSubmitting"
+            @click="handleSubmit"
+          >
+            确定
+          </el-button>
         </span>
       </template>
     </el-dialog>
@@ -242,6 +252,7 @@ const dictTree = ref<SysDictTreeNode[]>([])
 const currentNode = ref<SysDictTreeNode | null>(null)
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增字典节点')
+const formSubmitting = ref(false)
 
 const treeProps = {
   children: 'children',
@@ -423,9 +434,18 @@ function getDeleteErrorMessage(error: unknown) {
     return `系统接口 ${responseStatus} 异常`
   }
   if (error instanceof Error) {
+    if (error.message.includes('Network Error')) {
+      return '后端接口连接异常'
+    }
+    if (error.message.includes('timeout')) {
+      return '系统接口请求超时'
+    }
     return error.message
   }
-  return String(error || '')
+  if (typeof error === 'string') {
+    return error
+  }
+  return ''
 }
 
 function isUserCancel(error: unknown) {
@@ -443,6 +463,14 @@ function showDeleteError(error: unknown) {
     return
   }
   ElMessage.error('删除字典失败')
+}
+
+function showSubmitError(error: unknown, fallbackMessage: string) {
+  const message = getDeleteErrorMessage(error)
+  if (!message) {
+    return
+  }
+  ElMessage.error(message || fallbackMessage)
 }
 
 async function executeDelete(row: SysDictTreeNode, force: boolean, suppressErrorMessage = false) {
@@ -503,6 +531,9 @@ async function handleDelete(row: SysDictTreeNode) {
 }
 
 async function handleSubmit() {
+  if (formSubmitting.value) {
+    return
+  }
   if (!canSubmitDictForm.value) {
     warnNoPermission()
     return
@@ -510,6 +541,8 @@ async function handleSubmit() {
   if (!formRef.value) {
     return
   }
+  const fallbackMessage = form.value.id ? '编辑字典失败' : '新增字典失败'
+  formSubmitting.value = true
   try {
     await formRef.value.validate()
     const payload = {
@@ -523,17 +556,19 @@ async function handleSubmit() {
     }
 
     if (form.value.id) {
-      await updateDict(payload)
+      await updateDict(payload, { suppressErrorMessage: true })
       ElMessage.success('编辑成功')
     } else {
-      await createDict(payload)
+      await createDict(payload, { suppressErrorMessage: true })
       ElMessage.success('新增成功')
     }
 
     dialogVisible.value = false
     await loadDictTree()
-  } catch {
-    // 表单校验失败或请求失败时保持当前弹窗
+  } catch (error) {
+    showSubmitError(error, fallbackMessage)
+  } finally {
+    formSubmitting.value = false
   }
 }
 

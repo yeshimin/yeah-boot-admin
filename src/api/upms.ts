@@ -54,11 +54,12 @@ export function getUserDetail(id: number) {
   })
 }
 
-export function createUser(data: Record<string, unknown>) {
+export function createUser(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysUser/create',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -96,11 +97,12 @@ export function getRoleDetail(id: number) {
   })
 }
 
-export function createRole(data: Record<string, unknown>) {
+export function createRole(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysRole/create',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -146,11 +148,12 @@ export function getResourceDetail(id: number) {
   })
 }
 
-export function createResource(data: Record<string, unknown>) {
+export function createResource(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysRes/create',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -188,11 +191,12 @@ export function getPostDetail(id: number) {
   })
 }
 
-export function createPost(data: Record<string, unknown>) {
+export function createPost(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysPost/create',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -222,11 +226,12 @@ export function queryRoleResourceTree(roleId: number) {
   })
 }
 
-export function setRoleResources(roleId: number, resIds: number[]) {
+export function setRoleResources(roleId: number, resIds: number[], options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysRole/setResources',
     method: 'post',
     data: { roleId, resIds },
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -246,11 +251,12 @@ export function getOrgDetail(id: number) {
   })
 }
 
-export function createOrg(data: Record<string, unknown>) {
+export function createOrg(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysOrg/create',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -298,19 +304,21 @@ export function getDictDetail(id: number) {
   })
 }
 
-export function createDict(data: Record<string, unknown>) {
+export function createDict(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysDict/create',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
-export function updateDict(data: Record<string, unknown>) {
+export function updateDict(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysDict/update',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 

@@ -164,6 +164,9 @@
       v-model="dialogVisible"
       :title="dialogTitle"
       width="720px"
+      :close-on-click-modal="!userFormSubmitting"
+      :close-on-press-escape="!userFormSubmitting"
+      :show-close="!userFormSubmitting"
       @closed="handleDialogClose"
     >
       <el-form
@@ -240,8 +243,15 @@
       </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button v-if="canSubmitUserForm" type="primary" @click="handleSubmitUser">确定</el-button>
+          <el-button :disabled="userFormSubmitting" @click="dialogVisible = false">取消</el-button>
+          <el-button
+            v-if="canSubmitUserForm"
+            type="primary"
+            :loading="userFormSubmitting"
+            @click="handleSubmitUser"
+          >
+            确定
+          </el-button>
         </span>
       </template>
     </el-dialog>
@@ -357,6 +367,7 @@ const userList = ref<any[]>([])
 // 弹窗控制
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增用户')
+const userFormSubmitting = ref(false)
 const detailVisible = ref(false)
 const currentUserDetail = ref<SysUserVo | null>(null)
 
@@ -649,7 +660,21 @@ const handleEditUser = async (row: any) => {
 }
 
 function getDeleteErrorMessage(error: unknown) {
+  const responseMessage = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
+  if (responseMessage) {
+    return responseMessage
+  }
+  const responseStatus = (error as { response?: { status?: number } } | undefined)?.response?.status
+  if (responseStatus) {
+    return `系统接口 ${responseStatus} 异常`
+  }
   if (error instanceof Error) {
+    if (error.message.includes('Network Error')) {
+      return '后端接口连接异常'
+    }
+    if (error.message.includes('timeout')) {
+      return '系统接口请求超时'
+    }
     return error.message
   }
   if (typeof error === 'string') {
@@ -690,6 +715,14 @@ function showUserUpdateError(error: unknown, fallbackMessage = '操作失败') {
     return
   }
   ElMessage.error(message || fallbackMessage)
+}
+
+function showSubmitError(error: unknown, fallbackMessage: string) {
+  const message = getDeleteErrorMessage(error)
+  if (!message) {
+    return
+  }
+  showUserUpdateError(error, fallbackMessage)
 }
 
 // 删除用户
@@ -806,27 +839,34 @@ const handleResetPassword = async (row: any) => {
 
 // 提交用户表单
 const handleSubmitUser = async () => {
+  if (userFormSubmitting.value) {
+    return
+  }
   if (!canSubmitUserForm.value) {
     warnNoPermission()
     return
   }
   if (!userFormRef.value) return
+  const fallbackMessage = userForm.id ? '编辑用户失败' : '新增用户失败'
+  userFormSubmitting.value = true
   try {
     await userFormRef.value.validate()
     const payload = buildUserPayload()
 
     if (userForm.id) {
-      await updateUser(payload)
+      await updateUser(payload, { suppressErrorMessage: true })
       ElMessage.success('编辑用户成功')
     } else {
       payload.password = await sha256Hex(userForm.password.trim())
-      await createUser(payload)
+      await createUser(payload, { suppressErrorMessage: true })
       ElMessage.success('新增用户成功')
     }
     dialogVisible.value = false
     await getUserList()
   } catch (error) {
-    console.log('表单验证失败', error)
+    showSubmitError(error, fallbackMessage)
+  } finally {
+    userFormSubmitting.value = false
   }
 }
 

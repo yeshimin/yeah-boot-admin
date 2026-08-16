@@ -19,19 +19,21 @@ export function getProvinceDetail(id: number) {
   })
 }
 
-export function createProvince(data: Record<string, unknown>) {
+export function createProvince(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/area/province/crud/create',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
-export function updateProvince(data: Record<string, unknown>) {
+export function updateProvince(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/area/province/crud/update',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -60,19 +62,21 @@ export function queryCities(params: Record<string, unknown>) {
   })
 }
 
-export function createCity(data: Record<string, unknown>) {
+export function createCity(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/area/city/crud/create',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
-export function updateCity(data: Record<string, unknown>) {
+export function updateCity(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/area/city/crud/update',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
@@ -101,19 +105,21 @@ export function getDistrictDetail(id: number) {
   })
 }
 
-export function createDistrict(data: Record<string, unknown>) {
+export function createDistrict(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/area/district/crud/create',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 
-export function updateDistrict(data: Record<string, unknown>) {
+export function updateDistrict(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/area/district/crud/update',
     method: 'post',
     data,
+    suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
 

@@ -111,6 +111,9 @@
       v-model="dialogVisible"
       :title="dialogTitle"
       width="500px"
+      :close-on-click-modal="!roleFormSubmitting"
+      :close-on-press-escape="!roleFormSubmitting"
+      :show-close="!roleFormSubmitting"
       @closed="handleDialogClose"
     >
       <el-form
@@ -139,8 +142,15 @@
       </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button v-if="canSubmitRoleForm" type="primary" @click="handleSubmitRole">确定</el-button>
+          <el-button :disabled="roleFormSubmitting" @click="dialogVisible = false">取消</el-button>
+          <el-button
+            v-if="canSubmitRoleForm"
+            type="primary"
+            :loading="roleFormSubmitting"
+            @click="handleSubmitRole"
+          >
+            确定
+          </el-button>
         </span>
       </template>
     </el-dialog>
@@ -150,6 +160,9 @@
       v-model="permissionDialogVisible"
       title="分配权限"
       width="600px"
+      :close-on-click-modal="!permissionSubmitting"
+      :close-on-press-escape="!permissionSubmitting"
+      :show-close="!permissionSubmitting"
       @closed="handlePermissionDialogClose"
     >
       <div class="permission-tree-container">
@@ -164,8 +177,15 @@
       </div>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="permissionDialogVisible = false">取消</el-button>
-          <el-button v-if="canAssignRoleResources" type="primary" @click="handleSubmitPermission">确定</el-button>
+          <el-button :disabled="permissionSubmitting" @click="permissionDialogVisible = false">取消</el-button>
+          <el-button
+            v-if="canAssignRoleResources"
+            type="primary"
+            :loading="permissionSubmitting"
+            @click="handleSubmitPermission"
+          >
+            确定
+          </el-button>
         </span>
       </template>
     </el-dialog>
@@ -234,6 +254,7 @@ const roleList = ref<any[]>([])
 // 弹窗控制
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增角色')
+const roleFormSubmitting = ref(false)
 
 // 角色表单引用
 const roleFormRef = ref<FormInstance>()
@@ -286,6 +307,7 @@ const roleRules = reactive<FormRules>({
 // 权限分配弹窗
 const permissionDialogVisible = ref(false)
 const permissionTreeRef = ref<any>()
+const permissionSubmitting = ref(false)
 const checkedPermissions = ref<number[]>([])
 const disabledCheckedPermissions = ref<number[]>([])
 const currentRole = ref<any>(null)
@@ -394,7 +416,21 @@ const handleEditRole = async (row: any) => {
 }
 
 function getDeleteErrorMessage(error: unknown) {
+  const responseMessage = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
+  if (responseMessage) {
+    return responseMessage
+  }
+  const responseStatus = (error as { response?: { status?: number } } | undefined)?.response?.status
+  if (responseStatus) {
+    return `系统接口 ${responseStatus} 异常`
+  }
   if (error instanceof Error) {
+    if (error.message.includes('Network Error')) {
+      return '后端接口连接异常'
+    }
+    if (error.message.includes('timeout')) {
+      return '系统接口请求超时'
+    }
     return error.message
   }
   if (typeof error === 'string') {
@@ -419,6 +455,14 @@ function showDeleteError(error: unknown) {
 function showStatusUpdateError(error: unknown) {
   const message = getDeleteErrorMessage(error)
   ElMessage.error(message || '角色状态更新失败')
+}
+
+function showSubmitError(error: unknown, fallbackMessage: string) {
+  const message = getDeleteErrorMessage(error)
+  if (!message) {
+    return
+  }
+  ElMessage.error(message || fallbackMessage)
 }
 
 // 删除角色
@@ -562,11 +606,16 @@ const handleAssignPermission = async (row: any) => {
 
 // 提交角色表单
 const handleSubmitRole = async () => {
+  if (roleFormSubmitting.value) {
+    return
+  }
   if (!canSubmitRoleForm.value) {
     warnNoPermission()
     return
   }
   if (!roleFormRef.value) return
+  const fallbackMessage = roleForm.id ? '编辑角色失败' : '新增角色失败'
+  roleFormSubmitting.value = true
   try {
     await roleFormRef.value.validate()
     const payload = {
@@ -578,51 +627,63 @@ const handleSubmitRole = async () => {
     }
 
     if (roleForm.id) {
-      await updateRole(payload)
+      await updateRole(payload, { suppressErrorMessage: true })
       ElMessage.success('编辑角色成功')
     } else {
-      await createRole(payload)
+      await createRole(payload, { suppressErrorMessage: true })
       ElMessage.success('新增角色成功')
     }
     dialogVisible.value = false
     await getRoleList()
   } catch (error) {
-    console.log('表单验证失败', error)
+    showSubmitError(error, fallbackMessage)
+  } finally {
+    roleFormSubmitting.value = false
   }
 }
 
 // 提交权限分配
 const handleSubmitPermission = async () => {
+  if (permissionSubmitting.value) {
+    return
+  }
   if (!canAssignRoleResources.value) {
     warnNoPermission()
     return
   }
-  if (!currentRole.value) return
+  if (!currentRole.value || !permissionTreeRef.value) return
+  permissionSubmitting.value = true
 
-  const checkedKeys = permissionTreeRef.value.getCheckedKeys() as number[]
-  const halfCheckedKeys = permissionTreeRef.value.getHalfCheckedKeys() as number[]
-  // 半选父节点也要保存；禁用且原本已绑定的资源不可勾选，但要保留原值。
-  const selectedKeys = Array.from(new Set([
-    ...checkedKeys,
-    ...halfCheckedKeys,
-    ...disabledCheckedPermissions.value,
-  ]))
+  try {
+    const checkedKeys = permissionTreeRef.value.getCheckedKeys() as number[]
+    const halfCheckedKeys = permissionTreeRef.value.getHalfCheckedKeys() as number[]
+    // 半选父节点也要保存；禁用且原本已绑定的资源不可勾选，但要保留原值。
+    const selectedKeys = Array.from(new Set([
+      ...checkedKeys,
+      ...halfCheckedKeys,
+      ...disabledCheckedPermissions.value,
+    ]))
 
-  await setRoleResources(currentRole.value.id, selectedKeys)
-  currentRole.value.permissions = selectedKeys
+    await setRoleResources(currentRole.value.id, selectedKeys, { suppressErrorMessage: true })
+    currentRole.value.permissions = selectedKeys
 
-  // 更新角色列表中的权限
-  const index = roleList.value.findIndex(item => item.id === currentRole.value.id)
-  if (index > -1) {
-    const targetRole = roleList.value[index]
-    if (targetRole) {
-      targetRole.permissions = selectedKeys
+    // 更新角色列表中的权限
+    const index = roleList.value.findIndex(item => item.id === currentRole.value.id)
+    if (index > -1) {
+      const targetRole = roleList.value[index]
+      if (targetRole) {
+        targetRole.permissions = selectedKeys
+      }
     }
-  }
 
-  ElMessage.success('权限分配成功')
-  permissionDialogVisible.value = false
-  currentRole.value = null
+    ElMessage.success('权限分配成功')
+    permissionDialogVisible.value = false
+    currentRole.value = null
+  } catch (error) {
+    showSubmitError(error, '权限分配失败')
+  } finally {
+    permissionSubmitting.value = false
+  }
 }
 
 // 重置角色表单

@@ -87,6 +87,9 @@
       v-model="dialogVisible"
       :title="dialogTitle"
       width="520px"
+      :close-on-click-modal="!formSubmitting"
+      :close-on-press-escape="!formSubmitting"
+      :show-close="!formSubmitting"
       @closed="handleDialogClose"
     >
       <el-form
@@ -126,8 +129,15 @@
       </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button v-if="canSubmitOrgForm" type="primary" @click="handleSubmit">确定</el-button>
+          <el-button :disabled="formSubmitting" @click="dialogVisible = false">取消</el-button>
+          <el-button
+            v-if="canSubmitOrgForm"
+            type="primary"
+            :loading="formSubmitting"
+            @click="handleSubmit"
+          >
+            确定
+          </el-button>
         </span>
       </template>
     </el-dialog>
@@ -161,6 +171,7 @@ const orgList = ref<SysOrgTreeNode[]>([])
 const parentTree = ref<SysOrgTreeNode[]>([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增组织')
+const formSubmitting = ref(false)
 const expandAll = ref(true)
 const refreshTable = ref(true)
 const lockedDisabledParentId = ref<number | null>(null)
@@ -319,7 +330,21 @@ async function handleEdit(row: SysOrgTreeNode) {
 }
 
 function getDeleteErrorMessage(error: unknown) {
+  const responseMessage = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
+  if (responseMessage) {
+    return responseMessage
+  }
+  const responseStatus = (error as { response?: { status?: number } } | undefined)?.response?.status
+  if (responseStatus) {
+    return `系统接口 ${responseStatus} 异常`
+  }
   if (error instanceof Error) {
+    if (error.message.includes('Network Error')) {
+      return '后端接口连接异常'
+    }
+    if (error.message.includes('timeout')) {
+      return '系统接口请求超时'
+    }
     return error.message
   }
   if (typeof error === 'string') {
@@ -348,6 +373,14 @@ function showDeleteError(error: unknown) {
 function showStatusUpdateError(error: unknown) {
   const message = getDeleteErrorMessage(error)
   ElMessage.error(message || '组织状态更新失败')
+}
+
+function showSubmitError(error: unknown, fallbackMessage: string) {
+  const message = getDeleteErrorMessage(error)
+  if (!message) {
+    return
+  }
+  ElMessage.error(message || fallbackMessage)
 }
 
 async function handleDelete(row: SysOrgTreeNode) {
@@ -407,6 +440,9 @@ async function handleStatusChange(row: SysOrgTreeNode) {
 }
 
 async function handleSubmit() {
+  if (formSubmitting.value) {
+    return
+  }
   if (!canSubmitOrgForm.value) {
     warnNoPermission()
     return
@@ -415,6 +451,8 @@ async function handleSubmit() {
     return
   }
 
+  const fallbackMessage = form.id ? '编辑组织失败' : '新增组织失败'
+  formSubmitting.value = true
   try {
     await formRef.value.validate()
     const payload = {
@@ -427,17 +465,19 @@ async function handleSubmit() {
     }
 
     if (form.id) {
-      await updateOrg(payload)
+      await updateOrg(payload, { suppressErrorMessage: true })
       ElMessage.success('编辑组织成功')
     } else {
-      await createOrg(payload)
+      await createOrg(payload, { suppressErrorMessage: true })
       ElMessage.success('新增组织成功')
     }
 
     dialogVisible.value = false
     await Promise.all([loadOrgTree(), loadParentTree()])
-  } catch {
-    // 表单或请求失败时保持弹窗
+  } catch (error) {
+    showSubmitError(error, fallbackMessage)
+  } finally {
+    formSubmitting.value = false
   }
 }
 
