@@ -200,6 +200,7 @@
               :key="org.id"
               :label="org.name"
               :value="org.id"
+              :disabled="org.disabled"
             ></el-option>
           </el-select>
         </el-form-item>
@@ -210,6 +211,7 @@
               :key="post.id"
               :label="post.name"
               :value="post.id"
+              :disabled="post.disabled"
             ></el-option>
           </el-select>
         </el-form-item>
@@ -220,6 +222,7 @@
               :key="role.id"
               :label="role.name"
               :value="role.id"
+              :disabled="role.disabled"
             ></el-option>
           </el-select>
         </el-form-item>
@@ -299,6 +302,24 @@ import {
 import type { SysOrgTreeNode, SysUserVo } from '@/types/upms'
 import { sha256Hex } from '@/utils/crypto'
 
+const DATA_STATUS_DISABLED = '2'
+const DISABLED_SUFFIX = '（禁用）'
+
+type SelectOption = {
+  id: number
+  name: string
+  status?: string
+  disabled?: boolean
+}
+
+function isDisabledStatus(status?: string) {
+  return status === DATA_STATUS_DISABLED
+}
+
+function formatDisabledName(name: string, status?: string) {
+  return isDisabledStatus(status) ? `${name}${DISABLED_SUFFIX}` : name
+}
+
 const authStore = useAuthStore()
 const canCreateUser = computed(() => authStore.hasPermission('admin:sysUser:create'))
 const canViewUserDetail = computed(() => authStore.hasPermission('admin:sysUser:detail'))
@@ -326,9 +347,9 @@ const pagination = reactive({
 
 // 选中的用户列表
 const selectedUsers = ref<any[]>([])
-const orgOptions = ref<{ id: number; name: string }[]>([])
-const postOptions = ref<{ id: number; name: string }[]>([])
-const roleOptions = ref<{ id: number; name: string }[]>([])
+const orgOptions = ref<SelectOption[]>([])
+const postOptions = ref<SelectOption[]>([])
+const roleOptions = ref<SelectOption[]>([])
 const orgTreeData = ref<SysOrgTreeNode[]>([])
 const orgTreeRef = ref<InstanceType<typeof ElTree>>()
 const treeFilterText = ref('')
@@ -421,9 +442,16 @@ const userRules = reactive<FormRules>({
   ]
 })
 
-const flattenOrgTree = (tree: SysOrgTreeNode[], prefix = ''): { id: number; name: string }[] => {
+const flattenOrgTree = (tree: SysOrgTreeNode[], prefix = ''): SelectOption[] => {
   return tree.flatMap((node) => {
-    const current = [{ id: node.id, name: `${prefix}${node.name}` }]
+    const name = `${prefix}${node.name}`
+    const disabled = isDisabledStatus(node.status)
+    const current = [{
+      id: node.id,
+      name: formatDisabledName(name, node.status),
+      status: node.status,
+      disabled,
+    }]
     const children = node.children ? flattenOrgTree(node.children, `${prefix}└─ `) : []
     return [...current, ...children]
   })
@@ -440,11 +468,15 @@ const loadOptions = async () => {
   orgOptions.value = flattenOrgTree(orgTreeResponse.data)
   postOptions.value = postResponse.data.records.map((post) => ({
     id: post.id,
-    name: post.name,
+    name: formatDisabledName(post.name, post.status),
+    status: post.status,
+    disabled: isDisabledStatus(post.status),
   }))
   roleOptions.value = roleResponse.data.records.map((role) => ({
     id: role.id,
-    name: role.name,
+    name: formatDisabledName(role.name, role.status),
+    status: role.status,
+    disabled: isDisabledStatus(role.status),
   }))
 }
 
@@ -621,6 +653,19 @@ function showDeleteError(error: unknown) {
   ElMessage.error(message || '删除失败')
 }
 
+function showUserUpdateError(error: unknown, fallbackMessage = '操作失败') {
+  const message = getDeleteErrorMessage(error)
+  if (message.includes('不能禁用自己')) {
+    ElMessage.warning('不能禁用当前登录用户')
+    return
+  }
+  if (message.includes('超级管理员不能禁用')) {
+    ElMessage.warning('不能禁用超级管理员')
+    return
+  }
+  ElMessage.error(message || fallbackMessage)
+}
+
 // 删除用户
 const handleDeleteUser = async (row: any) => {
   if (!canDeleteUser.value) {
@@ -687,10 +732,11 @@ const handleStatusChange = async (row: any) => {
     await updateUser({
       id: row.id,
       status: nextStatus,
-    })
+    }, { suppressErrorMessage: true })
     ElMessage.success(`用户${nextStatus === '1' ? '启用' : '禁用'}成功`)
-  } catch {
+  } catch (error) {
     row.status = previousStatus
+    showUserUpdateError(error, '状态更新失败')
   }
 }
 

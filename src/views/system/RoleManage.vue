@@ -190,6 +190,17 @@ import {
 import type { ResourceTreeNode } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
 
+const DATA_STATUS_DISABLED = '2'
+const DISABLED_SUFFIX = '（禁用）'
+
+function isDisabledResource(data: ResourceTreeNode) {
+  return data.status === DATA_STATUS_DISABLED
+}
+
+function formatResourceTreeLabel(data: ResourceTreeNode) {
+  return isDisabledResource(data) ? `${data.name}${DISABLED_SUFFIX}` : data.name
+}
+
 const authStore = useAuthStore()
 const canCreateRole = computed(() => authStore.hasPermission('admin:sysRole:create'))
 const canUpdateRole = computed(() => authStore.hasPermission('admin:sysRole:update'))
@@ -278,6 +289,7 @@ const roleRules = reactive<FormRules>({
 const permissionDialogVisible = ref(false)
 const permissionTreeRef = ref<any>()
 const checkedPermissions = ref<number[]>([])
+const disabledCheckedPermissions = ref<number[]>([])
 const currentRole = ref<any>(null)
 
 // 权限树数据
@@ -286,7 +298,8 @@ const permissionTree = ref<ResourceTreeNode[]>([])
 // 权限树配置
 const permissionTreeProps = {
   children: 'children',
-  label: 'name'
+  label: formatResourceTreeLabel,
+  disabled: isDisabledResource,
 }
 
 // 页面加载时获取角色列表
@@ -505,6 +518,15 @@ function collectDisplayCheckedIds(nodes: ResourceTreeNode[]): number[] {
   })
 }
 
+function collectDisabledCheckedIds(nodes: ResourceTreeNode[]): number[] {
+  return nodes.flatMap((node) => {
+    const current = isDisabledResource(node) && node.checked ? [node.id] : []
+    const children = node.children ? collectDisabledCheckedIds(node.children) : []
+
+    return [...current, ...children]
+  })
+}
+
 const handleAssignPermission = async (row: any) => {
   if (!canAssignRoleResources.value) {
     warnNoPermission()
@@ -514,6 +536,7 @@ const handleAssignPermission = async (row: any) => {
   const response = await queryRoleResourceTree(row.id)
   permissionTree.value = response.data
   checkedPermissions.value = collectDisplayCheckedIds(response.data)
+  disabledCheckedPermissions.value = collectDisabledCheckedIds(response.data)
   permissionDialogVisible.value = true
   await nextTick()
   permissionTreeRef.value?.setCheckedKeys(checkedPermissions.value)
@@ -560,8 +583,12 @@ const handleSubmitPermission = async () => {
 
   const checkedKeys = permissionTreeRef.value.getCheckedKeys() as number[]
   const halfCheckedKeys = permissionTreeRef.value.getHalfCheckedKeys() as number[]
-  // 半选父节点也要保存：页面/菜单这类父级资源用于控制菜单和路由可见性。
-  const selectedKeys = Array.from(new Set([...checkedKeys, ...halfCheckedKeys]))
+  // 半选父节点也要保存；禁用且原本已绑定的资源不可勾选，但要保留原值。
+  const selectedKeys = Array.from(new Set([
+    ...checkedKeys,
+    ...halfCheckedKeys,
+    ...disabledCheckedPermissions.value,
+  ]))
 
   await setRoleResources(currentRole.value.id, selectedKeys)
   currentRole.value.permissions = selectedKeys
@@ -602,6 +629,7 @@ const handleDialogClose = () => {
 // 关闭权限分配对话框
 const handlePermissionDialogClose = () => {
   checkedPermissions.value = []
+  disabledCheckedPermissions.value = []
   currentRole.value = null
 }
 </script>
