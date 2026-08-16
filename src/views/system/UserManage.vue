@@ -755,6 +755,17 @@ const handleStatusChange = async (row: any) => {
     return
   }
   try {
+    if (nextStatus === '2') {
+      await ElMessageBox.confirm(
+        '确定要禁用该用户吗？禁用后该用户将无法登录，并会被强制下线。',
+        '确认禁用',
+        {
+          confirmButtonText: '确定禁用',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      )
+    }
     await updateUser({
       id: row.id,
       status: nextStatus,
@@ -762,6 +773,9 @@ const handleStatusChange = async (row: any) => {
     ElMessage.success(`用户${nextStatus === '1' ? '启用' : '禁用'}成功`)
   } catch (error) {
     row.status = previousStatus
+    if (isUserCancel(error)) {
+      return
+    }
     showUserUpdateError(error, '状态更新失败')
   }
 }

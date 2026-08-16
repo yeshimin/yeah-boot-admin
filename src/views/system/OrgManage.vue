@@ -376,13 +376,27 @@ async function handleStatusChange(row: SysOrgTreeNode) {
     return
   }
   try {
+    if (nextStatus === '2') {
+      await ElMessageBox.confirm(
+        '确定要禁用该组织吗？禁用后该组织将不能作为新的上级组织或用户绑定项。',
+        '确认禁用',
+        {
+          confirmButtonText: '确定禁用',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      )
+    }
     await updateOrg({
       id: row.id,
       status: nextStatus,
     })
     ElMessage.success(`组织${nextStatus === '1' ? '启用' : '禁用'}成功`)
-  } catch {
+  } catch (error) {
     row.status = previousStatus
+    if (isUserCancel(error)) {
+      return
+    }
   }
 }
 

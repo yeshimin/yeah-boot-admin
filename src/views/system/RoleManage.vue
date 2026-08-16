@@ -479,13 +479,27 @@ const handleStatusChange = async (row: any) => {
     return
   }
   try {
+    if (nextStatus === '2') {
+      await ElMessageBox.confirm(
+        '确定要禁用该角色吗？禁用后关联用户将失去该角色权限。',
+        '确认禁用',
+        {
+          confirmButtonText: '确定禁用',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      )
+    }
     await updateRole({
       id: row.id,
       status: nextStatus,
     })
     ElMessage.success(`角色${nextStatus === '1' ? '启用' : '禁用'}成功`)
-  } catch {
+  } catch (error) {
     row.status = previousStatus
+    if (isUserCancel(error)) {
+      return
+    }
   }
 }
 

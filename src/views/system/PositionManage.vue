@@ -413,13 +413,27 @@ const handleStatusChange = async (row: any) => {
     return
   }
   try {
+    if (nextStatus === '2') {
+      await ElMessageBox.confirm(
+        '确定要禁用该岗位吗？禁用后该岗位将不能作为新的用户岗位。',
+        '确认禁用',
+        {
+          confirmButtonText: '确定禁用',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      )
+    }
     await updatePost({
       id: row.id,
       status: nextStatus,
     })
     ElMessage.success(`岗位${nextStatus === '1' ? '启用' : '禁用'}成功`)
-  } catch {
+  } catch (error) {
     row.status = previousStatus
+    if (isUserCancel(error)) {
+      return
+    }
   }
 }
 

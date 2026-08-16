@@ -512,13 +512,27 @@ const handleStatusChange = async (row: any) => {
     return
   }
   try {
+    if (nextStatus === '2') {
+      await ElMessageBox.confirm(
+        '确定要禁用该资源吗？禁用后对应菜单、按钮、接口权限将失效。',
+        '确认禁用',
+        {
+          confirmButtonText: '确定禁用',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      )
+    }
     await updateResource({
       id: row.id,
       status: nextStatus,
     })
     ElMessage.success(`资源${nextStatus === '1' ? '启用' : '禁用'}成功`)
-  } catch {
+  } catch (error) {
     row.status = previousStatus
+    if (isUserCancel(error)) {
+      return
+    }
   }
 }
 
