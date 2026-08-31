@@ -197,7 +197,7 @@ import { computed, nextTick, ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import type { FormInstance, FormRules, TableInstance, TreeInstance } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import {
   createRole,
@@ -208,7 +208,13 @@ import {
   setRoleResources,
   updateRole,
 } from '@/api/upms'
-import type { ResourceTreeNode } from '@/types/upms'
+import type {
+  ResourceTreeNode,
+  RoleCreateRequest,
+  RoleFormModel,
+  RoleUpdateRequest,
+  SysRoleListItem,
+} from '@/types/upms'
 import { buildConditions } from '@/utils/query'
 import { formatDisabledName, isDisabledStatus } from '@/utils/status'
 
@@ -234,7 +240,7 @@ const canAssignRoleResources = computed(() => (
 
 // 表格加载状态
 const tableLoading = ref(false)
-const roleTableRef = ref<{ clearSelection: () => void }>()
+const roleTableRef = ref<TableInstance>()
 
 // 搜索表单
 const searchForm = reactive({
@@ -250,10 +256,10 @@ const pagination = reactive({
 })
 
 // 选中的角色列表
-const selectedRoles = ref<any[]>([])
+const selectedRoles = ref<SysRoleListItem[]>([])
 
 // 角色列表数据
-const roleList = ref<any[]>([])
+const roleList = ref<SysRoleListItem[]>([])
 
 // 弹窗控制
 const dialogVisible = ref(false)
@@ -264,14 +270,12 @@ const roleFormSubmitting = ref(false)
 const roleFormRef = ref<FormInstance>()
 
 // 角色表单数据
-const roleForm = reactive({
+const roleForm = reactive<RoleFormModel>({
   id: 0,
   code: '',
   name: '',
   remark: '',
   status: '1',
-  permissions: [] as number[],
-  createTime: ''
 })
 const canSubmitRoleForm = computed(() => (roleForm.id ? canUpdateRole.value : canCreateRole.value))
 const selectedRoleIds = computed(() => (
@@ -321,12 +325,12 @@ const roleRules = reactive<FormRules>({
 
 // 权限分配弹窗
 const permissionDialogVisible = ref(false)
-const permissionTreeRef = ref<any>()
+const permissionTreeRef = ref<TreeInstance>()
 const permissionSubmitting = ref(false)
 const checkedPermissions = ref<string[]>([])
 const disabledCheckedViewResIds = ref<number[]>([])
 const disabledCheckedMountIds = ref<number[]>([])
-const currentRole = ref<any>(null)
+const currentRole = ref<SysRoleListItem | null>(null)
 
 // 权限树数据
 const permissionTree = ref<ResourceTreeNode[]>([])
@@ -396,7 +400,7 @@ const handleCurrentChange = async (page: number) => {
 }
 
 // 选择角色变化
-const handleSelectionChange = (selection: any[]) => {
+const handleSelectionChange = (selection: SysRoleListItem[]) => {
   selectedRoles.value = selection
 }
 
@@ -412,7 +416,7 @@ const handleAddRole = () => {
 }
 
 // 编辑角色
-const handleEditRole = async (row: any) => {
+const handleEditRole = async (row: SysRoleListItem) => {
   if (!canUpdateRole.value) {
     warnNoPermission()
     return
@@ -425,8 +429,6 @@ const handleEditRole = async (row: any) => {
     name: response.data.name,
     remark: response.data.remark || '',
     status: response.data.status || '1',
-    permissions: [],
-    createTime: response.data.createTime || '',
   })
   dialogVisible.value = true
 }
@@ -482,7 +484,7 @@ function showSubmitError(error: unknown, fallbackMessage: string) {
 }
 
 // 删除角色
-const handleDeleteRole = async (row: any) => {
+const handleDeleteRole = async (row: SysRoleListItem) => {
   if (!canDeleteRole.value) {
     warnNoPermission()
     return
@@ -535,7 +537,7 @@ const handleBatchDeleteRoles = async () => {
 }
 
 // 状态变化
-const handleStatusChange = async (row: any) => {
+const handleStatusChange = async (row: SysRoleListItem) => {
   const nextStatus = row.status
   const previousStatus = nextStatus === '1' ? '2' : '1'
   if (!canUpdateRole.value) {
@@ -670,7 +672,7 @@ function collectDisabledCheckedPermissionIds(nodes: ResourceTreeNode[]) {
   }
 }
 
-const handleAssignPermission = async (row: any) => {
+const handleAssignPermission = async (row: SysRoleListItem) => {
   if (!canAssignRoleResources.value) {
     warnNoPermission()
     return
@@ -701,8 +703,7 @@ const handleSubmitRole = async () => {
   roleFormSubmitting.value = true
   try {
     await roleFormRef.value.validate()
-    const payload = {
-      id: roleForm.id || undefined,
+    const payload: RoleCreateRequest = {
       code: roleForm.code,
       name: roleForm.name,
       remark: roleForm.remark,
@@ -710,7 +711,11 @@ const handleSubmitRole = async () => {
     }
 
     if (roleForm.id) {
-      await updateRole(payload, { suppressErrorMessage: true })
+      const updatePayload: RoleUpdateRequest = {
+        id: roleForm.id,
+        ...payload,
+      }
+      await updateRole(updatePayload, { suppressErrorMessage: true })
       ElMessage.success('编辑角色成功')
     } else {
       await createRole(payload, { suppressErrorMessage: true })
@@ -735,12 +740,14 @@ const handleSubmitPermission = async () => {
     warnNoPermission()
     return
   }
-  if (!currentRole.value || !permissionTreeRef.value) return
+  const role = currentRole.value
+  const tree = permissionTreeRef.value
+  if (!role || !tree) return
   permissionSubmitting.value = true
 
   try {
-    const checkedNodes = permissionTreeRef.value.getCheckedNodes(false, false) as ResourceTreeNode[]
-    const halfCheckedNodes = permissionTreeRef.value.getHalfCheckedNodes() as ResourceTreeNode[]
+    const checkedNodes = tree.getCheckedNodes(false, false) as ResourceTreeNode[]
+    const halfCheckedNodes = tree.getHalfCheckedNodes() as ResourceTreeNode[]
     const checkedSelection = collectSelectedPermissionIds(checkedNodes)
     const halfCheckedSelection = collectSelectedPermissionIds(halfCheckedNodes)
     const selectedViewResIds = Array.from(new Set([
@@ -754,10 +761,10 @@ const handleSubmitPermission = async () => {
       ...disabledCheckedMountIds.value,
     ]))
 
-    await setRoleResources(currentRole.value.id, selectedViewResIds, selectedMountIds, { suppressErrorMessage: true })
-    currentRole.value.permissions = selectedViewResIds
+    await setRoleResources(role.id, selectedViewResIds, selectedMountIds, { suppressErrorMessage: true })
+    role.permissions = selectedViewResIds
 
-    const index = roleList.value.findIndex(item => item.id === currentRole.value.id)
+    const index = roleList.value.findIndex(item => item.id === role.id)
     if (index > -1) {
       const targetRole = roleList.value[index]
       if (targetRole) {
@@ -783,8 +790,6 @@ const resetRoleForm = () => {
     name: '',
     remark: '',
     status: '1',
-    permissions: [],
-    createTime: ''
   })
   roleFormRef.value?.clearValidate()
 }

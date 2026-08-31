@@ -1,6 +1,9 @@
 import type { PageResponse } from '@/types/api'
 import type {
   MineVo,
+  RoleCreateRequest,
+  RoleQueryParams,
+  RoleUpdateRequest,
   ResourceTreeNode,
   SysDictEntity,
   SysDictTreeNode,
@@ -85,7 +88,7 @@ export function deleteUsers(ids: number[], options?: { suppressErrorMessage?: bo
   })
 }
 
-export function queryRoles(params: Record<string, unknown>) {
+export function queryRoles(params: RoleQueryParams) {
   return request<PageResponse<SysRoleEntity>>({
     url: '/admin/sysRole/crud/query',
     method: 'get',
@@ -101,8 +104,8 @@ export function getRoleDetail(id: number) {
   })
 }
 
-export function createRole(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
-  return request<void>({
+export function createRole(data: RoleCreateRequest, options?: { suppressErrorMessage?: boolean }) {
+  return request<SysRoleEntity>({
     url: '/admin/sysRole/create',
     method: 'post',
     data,
@@ -110,8 +113,8 @@ export function createRole(data: Record<string, unknown>, options?: { suppressEr
   })
 }
 
-export function updateRole(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
-  return request<void>({
+export function updateRole(data: RoleUpdateRequest, options?: { suppressErrorMessage?: boolean }) {
+  return request<SysRoleEntity>({
     url: '/admin/sysRole/update',
     method: 'post',
     data,

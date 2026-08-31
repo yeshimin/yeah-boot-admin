@@ -32,6 +32,40 @@ export interface SysRoleEntity {
   createTime?: string
 }
 
+export interface RoleQueryParams {
+  current: number
+  size: number
+  conditions_?: string
+  status?: string
+}
+
+export interface RoleCreateRequest {
+  code: string
+  name: string
+  status?: string
+  remark?: string
+}
+
+export interface RoleUpdateRequest {
+  id: number
+  code?: string
+  name?: string
+  status?: string
+  remark?: string
+}
+
+export interface RoleFormModel {
+  id: number
+  code: string
+  name: string
+  status: string
+  remark: string
+}
+
+export interface SysRoleListItem extends SysRoleEntity {
+  permissions: number[]
+}
+
 export interface SysOrgEntity {
   id: number
   parentId?: number
