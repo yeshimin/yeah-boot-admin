@@ -43,8 +43,13 @@
           </div>
         </el-form-item>
         <el-form-item class="login-form-extra">
-          <el-checkbox v-model="loginForm.remember">记住密码</el-checkbox>
-          <el-link type="primary" :underline="false" class="login-form-forgot">
+          <el-checkbox v-model="loginForm.remember">记住用户名</el-checkbox>
+          <el-link
+            type="primary"
+            :underline="false"
+            class="login-form-forgot"
+            @click="handleForgotPassword"
+          >
             忘记密码？
           </el-link>
         </el-form-item>
@@ -74,6 +79,7 @@ import { sha256Hex } from '@/utils/crypto'
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const REMEMBERED_USERNAME_KEY = 'yeah-boot-admin-remembered-username'
 
 // 登录表单引用
 const loginFormRef = ref<FormInstance>()
@@ -142,6 +148,24 @@ const loadCaptcha = async () => {
   }
 }
 
+const handleForgotPassword = () => {
+  ElMessage.info('请联系管理员')
+}
+
+const loadRememberedUsername = () => {
+  const username = localStorage.getItem(REMEMBERED_USERNAME_KEY) || ''
+  loginForm.username = username
+  loginForm.remember = Boolean(username)
+}
+
+const saveRememberedUsername = () => {
+  if (loginForm.remember) {
+    localStorage.setItem(REMEMBERED_USERNAME_KEY, loginForm.username.trim())
+    return
+  }
+  localStorage.removeItem(REMEMBERED_USERNAME_KEY)
+}
+
 // 处理登录
 const handleLogin = async () => {
   if (!loginFormRef.value) return
@@ -157,6 +181,7 @@ const handleLogin = async () => {
       key: captchaEnabled.value ? loginForm.key : undefined,
       terminal: loginForm.terminal,
     })
+    saveRememberedUsername()
     await router.push(redirectPath())
     ElMessage.success('登录成功')
   } catch {
@@ -169,6 +194,7 @@ const handleLogin = async () => {
 }
 
 onMounted(() => {
+  loadRememberedUsername()
   loadCaptcha()
 })
 </script>
@@ -239,9 +265,15 @@ onMounted(() => {
 }
 
 .login-form-extra {
+  width: 100%;
+}
+
+.login-form-extra :deep(.el-form-item__content) {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
 }
 
 .login-form-submit {
