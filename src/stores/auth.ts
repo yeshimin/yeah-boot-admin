@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { getCaptcha as getCaptchaApi, login as loginApi, logout as logoutApi } from '@/api/auth'
 import { getMine, getMineResources } from '@/api/upms'
-import { RESOURCE_TYPE, isMenuResourceType } from '@/constants/resource'
+import { RESOURCE_TYPE, isGroupResourceType, isMenuResourceType } from '@/constants/resource'
 import type { CaptchaVo, LoginRequest, MineVo, ResourceTreeNode } from '@/types/upms'
 import { getToken, removeToken, setToken } from '@/utils/auth'
 import { resetUnauthorizedState } from '@/utils/session'
@@ -40,19 +40,26 @@ function toAbsolutePath(parentPath: string | undefined, path: string | undefined
 
 function normalizeMenuTree(resources: ResourceTreeNode[], parentPath?: string, forceChecked = false): ResourceTreeNode[] {
   return resources
-    .filter((item) => isEnabledResource(item) && item.visible !== false && isMenuResourceType(item.type))
-    .map((item) => {
+    .filter(isEnabledResource)
+    .flatMap((item) => {
+      if (isGroupResourceType(item.type)) {
+        return item.children ? normalizeMenuTree(item.children, parentPath, forceChecked) : []
+      }
+      if (item.visible === false || !isMenuResourceType(item.type)) {
+        return []
+      }
+
       const absolutePath = toAbsolutePath(parentPath, item.path)
       const normalizedPath = item.type === RESOURCE_TYPE.MENU ? absolutePath : (MENU_ROUTE_MAP[absolutePath] || absolutePath)
       const normalizedName = absolutePath === '/system/dept' ? '组织管理' : item.name
       const children = item.children ? normalizeMenuTree(item.children, absolutePath, forceChecked) : []
-      return {
+      return [{
         ...item,
         checked: forceChecked || item.checked,
         name: normalizedName,
         path: normalizedPath,
         children,
-      }
+      }]
     })
     .filter((item) => forceChecked || item.checked === true || (item.children?.length ?? 0) > 0)
     .filter((item) => Boolean(item.path) || Boolean(item.isLink && item.linkUrl) || (item.children?.length ?? 0) > 0)
@@ -65,11 +72,12 @@ function normalizeResourceTree(resources: ResourceTreeNode[], parentPath?: strin
     .map((item) => {
       const absolutePath = toAbsolutePath(parentPath, item.path)
       const normalizedPath = item.type === RESOURCE_TYPE.MENU ? absolutePath : (MENU_ROUTE_MAP[absolutePath] || absolutePath)
+      const nextParentPath = absolutePath || parentPath
       return {
         ...item,
         checked: forceChecked || item.checked,
         path: normalizedPath,
-        children: item.children ? normalizeResourceTree(item.children, absolutePath, forceChecked) : [],
+        children: item.children ? normalizeResourceTree(item.children, nextParentPath, forceChecked) : [],
       }
     })
 }

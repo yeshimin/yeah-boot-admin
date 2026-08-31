@@ -9,6 +9,10 @@ import type {
   SysOrgTreeNode,
   SysPostEntity,
   SysResEntity,
+  SysResGroupEntity,
+  SysResGroupTreeNode,
+  SysResMountEntity,
+  SysResMountItem,
   SysRoleEntity,
   SysRoleVo,
   UpdateMineRequest,
@@ -140,6 +144,22 @@ export function getResourceTree(params?: Record<string, unknown>) {
   })
 }
 
+export function getViewResourceTree(params?: Record<string, unknown>) {
+  return request<ResourceTreeNode[]>({
+    url: '/admin/sysRes/viewTree',
+    method: 'get',
+    params,
+  })
+}
+
+export function getApiResourceTree(params?: Record<string, unknown>) {
+  return request<ResourceTreeNode[]>({
+    url: '/admin/sysRes/apiTree',
+    method: 'get',
+    params,
+  })
+}
+
 export function getResourceDetail(id: number) {
   return request<SysResEntity>({
     url: '/admin/sysRes/crud/detail',
@@ -171,6 +191,61 @@ export function deleteResources(ids: number[], options?: { suppressErrorMessage?
     url: '/admin/sysRes/delete',
     method: 'post',
     data: { ids },
+    suppressErrorMessage: options?.suppressErrorMessage,
+  })
+}
+
+export function getResourceGroupTree() {
+  return request<SysResGroupTreeNode[]>({
+    url: '/admin/sysResGroup/tree',
+    method: 'get',
+  })
+}
+
+export function createResourceGroup(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
+  return request<SysResGroupEntity>({
+    url: '/admin/sysResGroup/create',
+    method: 'post',
+    data,
+    suppressErrorMessage: options?.suppressErrorMessage,
+  })
+}
+
+export function updateResourceGroup(data: Record<string, unknown>, options?: { suppressErrorMessage?: boolean }) {
+  return request<SysResGroupEntity>({
+    url: '/admin/sysResGroup/update',
+    method: 'post',
+    data,
+    suppressErrorMessage: options?.suppressErrorMessage,
+  })
+}
+
+export function deleteResourceGroups(ids: number[], options?: { suppressErrorMessage?: boolean }) {
+  return request<void>({
+    url: '/admin/sysResGroup/delete',
+    method: 'post',
+    data: { ids },
+    suppressErrorMessage: options?.suppressErrorMessage,
+  })
+}
+
+export function queryMountedApis(viewResId: number) {
+  return request<SysResMountEntity[]>({
+    url: '/admin/sysResMount/queryByViewResId',
+    method: 'get',
+    params: { viewResId },
+  })
+}
+
+export function saveMountedApis(
+  viewResId: number,
+  items: SysResMountItem[],
+  options?: { suppressErrorMessage?: boolean },
+) {
+  return request<boolean>({
+    url: '/admin/sysResMount/saveByViewResId',
+    method: 'post',
+    data: { viewResId, items },
     suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
@@ -226,11 +301,16 @@ export function queryRoleResourceTree(roleId: number) {
   })
 }
 
-export function setRoleResources(roleId: number, resIds: number[], options?: { suppressErrorMessage?: boolean }) {
+export function setRoleResources(
+  roleId: number,
+  viewResIds: number[],
+  mountIds: number[] = [],
+  options?: { suppressErrorMessage?: boolean },
+) {
   return request<void>({
     url: '/admin/sysRole/setResources',
     method: 'post',
-    data: { roleId, resIds },
+    data: { roleId, viewResIds, mountIds },
     suppressErrorMessage: options?.suppressErrorMessage,
   })
 }

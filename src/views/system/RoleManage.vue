@@ -170,7 +170,7 @@
           ref="permissionTreeRef"
           :data="permissionTree"
           show-checkbox
-          node-key="id"
+          node-key="nodeKey"
           :props="permissionTreeProps"
           :default-checked-keys="checkedPermissions"
         ></el-tree>
@@ -194,6 +194,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, reactive, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -216,10 +217,13 @@ function isDisabledResource(data: ResourceTreeNode) {
 }
 
 function formatResourceTreeLabel(data: ResourceTreeNode) {
-  return formatDisabledName(data.name, data.status)
+  const typeSuffix = data.typeName ? `（${data.typeName}${data.mounted ? '·挂载' : ''}）` : ''
+  return formatDisabledName(`${data.name}${typeSuffix}`, data.status)
 }
 
 const authStore = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 const canCreateRole = computed(() => authStore.hasPermission('admin:sysRole:create'))
 const canUpdateRole = computed(() => authStore.hasPermission('admin:sysRole:update'))
 const canDeleteRole = computed(() => authStore.hasPermission('admin:sysRole:delete'))
@@ -284,6 +288,17 @@ function warnNoPermission() {
   ElMessage.warning('暂无操作权限')
 }
 
+async function refreshAuthContextSilently() {
+  try {
+    await authStore.refreshProfile()
+    if (!authStore.canAccessPath(route.path)) {
+      await router.replace(authStore.firstAccessiblePath)
+    }
+  } catch {
+    // Ignore auth-context refresh failures here; backend realtime authorization is still the final guard.
+  }
+}
+
 const clearSelectedRoles = () => {
   selectedRoles.value = []
   roleTableRef.value?.clearSelection()
@@ -308,8 +323,9 @@ const roleRules = reactive<FormRules>({
 const permissionDialogVisible = ref(false)
 const permissionTreeRef = ref<any>()
 const permissionSubmitting = ref(false)
-const checkedPermissions = ref<number[]>([])
-const disabledCheckedPermissions = ref<number[]>([])
+const checkedPermissions = ref<string[]>([])
+const disabledCheckedViewResIds = ref<number[]>([])
+const disabledCheckedMountIds = ref<number[]>([])
 const currentRole = ref<any>(null)
 
 // 权限树数据
@@ -544,6 +560,7 @@ const handleStatusChange = async (row: any) => {
       status: nextStatus,
     }, { suppressErrorMessage: true })
     ElMessage.success(`角色${nextStatus === '1' ? '启用' : '禁用'}成功`)
+    await refreshAuthContextSilently()
   } catch (error) {
     row.status = previousStatus
     if (isUserCancel(error)) {
@@ -566,27 +583,91 @@ function isFullyChecked(node: ResourceTreeNode): boolean {
   return node.children.every(isFullyChecked)
 }
 
-function collectDisplayCheckedIds(nodes: ResourceTreeNode[]): number[] {
+function getPermissionNodeKey(node: ResourceTreeNode) {
+  return node.nodeKey || `res:${node.id}`
+}
+
+function getPermissionResId(node: ResourceTreeNode) {
+  return Number(node.resId ?? node.id)
+}
+
+function getPermissionMountId(node: ResourceTreeNode) {
+  return Number(node.mountId ?? 0)
+}
+
+function isMountedPermissionNode(node: ResourceTreeNode) {
+  return Boolean(node.mounted) && getPermissionMountId(node) > 0
+}
+
+function collectDisplayCheckedKeys(nodes: ResourceTreeNode[]): string[] {
   return nodes.flatMap((node) => {
     if (!node.children?.length) {
-      return node.checked ? [node.id] : []
+      return node.checked ? [getPermissionNodeKey(node)] : []
     }
 
     if (isFullyChecked(node)) {
-      return [node.id]
+      return [getPermissionNodeKey(node)]
     }
 
-    return collectDisplayCheckedIds(node.children)
+    return collectDisplayCheckedKeys(node.children)
   })
 }
 
-function collectDisabledCheckedIds(nodes: ResourceTreeNode[]): number[] {
-  return nodes.flatMap((node) => {
-    const current = isDisabledResource(node) && node.checked ? [node.id] : []
-    const children = node.children ? collectDisabledCheckedIds(node.children) : []
+function collectSelectedPermissionIds(nodes: ResourceTreeNode[]) {
+  const viewResIds = new Set<number>()
+  const mountIds = new Set<number>()
 
-    return [...current, ...children]
+  nodes.forEach((node) => {
+    if (isMountedPermissionNode(node)) {
+      const mountId = getPermissionMountId(node)
+      if (Number.isFinite(mountId) && mountId > 0) {
+        mountIds.add(mountId)
+      }
+      return
+    }
+
+    const resId = getPermissionResId(node)
+    if (Number.isFinite(resId)) {
+      viewResIds.add(resId)
+    }
   })
+
+  return {
+    viewResIds: Array.from(viewResIds),
+    mountIds: Array.from(mountIds),
+  }
+}
+
+function collectDisabledCheckedPermissionIds(nodes: ResourceTreeNode[]) {
+  const viewResIds = new Set<number>()
+  const mountIds = new Set<number>()
+
+  const walk = (items: ResourceTreeNode[]) => {
+    items.forEach((node) => {
+      if (isDisabledResource(node) && node.checked) {
+        if (isMountedPermissionNode(node)) {
+          const mountId = getPermissionMountId(node)
+          if (Number.isFinite(mountId) && mountId > 0) {
+            mountIds.add(mountId)
+          }
+        } else {
+          const resId = getPermissionResId(node)
+          if (Number.isFinite(resId)) {
+            viewResIds.add(resId)
+          }
+        }
+      }
+      if (node.children?.length) {
+        walk(node.children)
+      }
+    })
+  }
+
+  walk(nodes)
+  return {
+    viewResIds: Array.from(viewResIds),
+    mountIds: Array.from(mountIds),
+  }
 }
 
 const handleAssignPermission = async (row: any) => {
@@ -597,8 +678,10 @@ const handleAssignPermission = async (row: any) => {
   currentRole.value = row
   const response = await queryRoleResourceTree(row.id)
   permissionTree.value = response.data
-  checkedPermissions.value = collectDisplayCheckedIds(response.data)
-  disabledCheckedPermissions.value = collectDisabledCheckedIds(response.data)
+  checkedPermissions.value = collectDisplayCheckedKeys(response.data)
+  const disabledChecked = collectDisabledCheckedPermissionIds(response.data)
+  disabledCheckedViewResIds.value = disabledChecked.viewResIds
+  disabledCheckedMountIds.value = disabledChecked.mountIds
   permissionDialogVisible.value = true
   await nextTick()
   permissionTreeRef.value?.setCheckedKeys(checkedPermissions.value)
@@ -635,6 +718,7 @@ const handleSubmitRole = async () => {
     }
     dialogVisible.value = false
     await getRoleList()
+    await refreshAuthContextSilently()
   } catch (error) {
     showSubmitError(error, fallbackMessage)
   } finally {
@@ -655,30 +739,36 @@ const handleSubmitPermission = async () => {
   permissionSubmitting.value = true
 
   try {
-    const checkedKeys = permissionTreeRef.value.getCheckedKeys() as number[]
-    const halfCheckedKeys = permissionTreeRef.value.getHalfCheckedKeys() as number[]
-    // 半选父节点也要保存；禁用且原本已绑定的资源不可勾选，但要保留原值。
-    const selectedKeys = Array.from(new Set([
-      ...checkedKeys,
-      ...halfCheckedKeys,
-      ...disabledCheckedPermissions.value,
+    const checkedNodes = permissionTreeRef.value.getCheckedNodes(false, false) as ResourceTreeNode[]
+    const halfCheckedNodes = permissionTreeRef.value.getHalfCheckedNodes() as ResourceTreeNode[]
+    const checkedSelection = collectSelectedPermissionIds(checkedNodes)
+    const halfCheckedSelection = collectSelectedPermissionIds(halfCheckedNodes)
+    const selectedViewResIds = Array.from(new Set([
+      ...checkedSelection.viewResIds,
+      ...halfCheckedSelection.viewResIds,
+      ...disabledCheckedViewResIds.value,
+    ]))
+    const selectedMountIds = Array.from(new Set([
+      ...checkedSelection.mountIds,
+      ...halfCheckedSelection.mountIds,
+      ...disabledCheckedMountIds.value,
     ]))
 
-    await setRoleResources(currentRole.value.id, selectedKeys, { suppressErrorMessage: true })
-    currentRole.value.permissions = selectedKeys
+    await setRoleResources(currentRole.value.id, selectedViewResIds, selectedMountIds, { suppressErrorMessage: true })
+    currentRole.value.permissions = selectedViewResIds
 
-    // 更新角色列表中的权限
     const index = roleList.value.findIndex(item => item.id === currentRole.value.id)
     if (index > -1) {
       const targetRole = roleList.value[index]
       if (targetRole) {
-        targetRole.permissions = selectedKeys
+        targetRole.permissions = selectedViewResIds
       }
     }
 
     ElMessage.success('权限分配成功')
     permissionDialogVisible.value = false
     currentRole.value = null
+    await refreshAuthContextSilently()
   } catch (error) {
     showSubmitError(error, '权限分配失败')
   } finally {
@@ -686,7 +776,6 @@ const handleSubmitPermission = async () => {
   }
 }
 
-// 重置角色表单
 const resetRoleForm = () => {
   Object.assign(roleForm, {
     id: 0,
@@ -708,7 +797,8 @@ const handleDialogClose = () => {
 // 关闭权限分配对话框
 const handlePermissionDialogClose = () => {
   checkedPermissions.value = []
-  disabledCheckedPermissions.value = []
+  disabledCheckedViewResIds.value = []
+  disabledCheckedMountIds.value = []
   currentRole.value = null
 }
 </script>

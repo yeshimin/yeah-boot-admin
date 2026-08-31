@@ -91,6 +91,7 @@ export interface ResourceTreeNode {
   id: number
   type: number
   parentId?: number
+  groupId?: number
   name: string
   permission?: string
   path?: string
@@ -102,12 +103,45 @@ export interface ResourceTreeNode {
   visible?: boolean
   sort?: number
   remark?: string
+  nodeKey?: string
+  resId?: number
+  mountId?: number
+  typeName?: string
+  mounted?: boolean
   checked?: boolean
   children?: ResourceTreeNode[]
 }
 
 export interface SysResEntity extends Omit<ResourceTreeNode, 'children' | 'checked'> {
   createTime?: string
+}
+
+export interface SysResGroupEntity {
+  id: number
+  parentId?: number
+  name: string
+  sort?: number
+  remark?: string
+  createTime?: string
+}
+
+export interface SysResGroupTreeNode extends SysResGroupEntity {
+  children?: SysResGroupTreeNode[]
+}
+
+export interface SysResMountEntity {
+  id: number
+  viewResId: number
+  apiResId: number
+  sort?: number
+  remark?: string
+  createTime?: string
+}
+
+export interface SysResMountItem {
+  apiResId: number
+  sort?: number
+  remark?: string
 }
 
 export interface SysUserVo extends SysUserEntity {
