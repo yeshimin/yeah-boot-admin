@@ -229,6 +229,7 @@ import {
 import { STORAGE_UPLOAD_PATH } from '@/constants/storage'
 import { useAuthStore } from '@/stores/auth'
 import type { ManagedStorageRecord, StorageUploadFormModel } from '@/types/storage'
+import { getRequestErrorMessage as getOperationErrorMessage, isUserCancel } from '@/utils/error'
 import { buildConditions } from '@/utils/query'
 
 type UnknownRecord = Record<string, unknown>
@@ -309,20 +310,6 @@ function warnNoPermission() {
 function clearSelectedStorageFiles() {
   selectedStorageFiles.value = []
   storageTableRef.value?.clearSelection()
-}
-
-function getOperationErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message
-  }
-  if (typeof error === 'string') {
-    return error
-  }
-  return ''
-}
-
-function isUserCancel(error: unknown) {
-  return error === 'cancel' || error === 'close'
 }
 
 function showDeleteError(error: unknown) {

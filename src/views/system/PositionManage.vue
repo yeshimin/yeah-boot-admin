@@ -165,6 +165,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { createPost, deletePosts, getPostDetail, queryPosts, updatePost } from '@/api/upms'
+import { getRequestErrorMessage as getDeleteErrorMessage, isUserCancel } from '@/utils/error'
 import { buildConditions } from '@/utils/query'
 
 const authStore = useAuthStore()
@@ -336,34 +337,6 @@ const handleEditPosition = async (row: any) => {
     createTime: response.data.createTime || '',
   })
   dialogVisible.value = true
-}
-
-function getDeleteErrorMessage(error: unknown) {
-  const responseMessage = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
-  if (responseMessage) {
-    return responseMessage
-  }
-  const responseStatus = (error as { response?: { status?: number } } | undefined)?.response?.status
-  if (responseStatus) {
-    return `系统接口 ${responseStatus} 异常`
-  }
-  if (error instanceof Error) {
-    if (error.message.includes('Network Error')) {
-      return '后端接口连接异常'
-    }
-    if (error.message.includes('timeout')) {
-      return '系统接口请求超时'
-    }
-    return error.message
-  }
-  if (typeof error === 'string') {
-    return error
-  }
-  return ''
-}
-
-function isUserCancel(error: unknown) {
-  return error === 'cancel' || error === 'close'
 }
 
 function showDeleteError(error: unknown) {

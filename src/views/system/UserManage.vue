@@ -311,6 +311,7 @@ import {
 } from '@/api/upms'
 import type { SysOrgTreeNode, SysUserVo } from '@/types/upms'
 import { sha256Hex } from '@/utils/crypto'
+import { getRequestErrorMessage as getDeleteErrorMessage, isUserCancel } from '@/utils/error'
 import { formatDisabledName, isDisabledStatus, joinStatusNames } from '@/utils/status'
 
 type SelectOption = {
@@ -657,34 +658,6 @@ const handleEditUser = async (row: any) => {
   })
   syncLockedDisabledRelations(detail)
   dialogVisible.value = true
-}
-
-function getDeleteErrorMessage(error: unknown) {
-  const responseMessage = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
-  if (responseMessage) {
-    return responseMessage
-  }
-  const responseStatus = (error as { response?: { status?: number } } | undefined)?.response?.status
-  if (responseStatus) {
-    return `系统接口 ${responseStatus} 异常`
-  }
-  if (error instanceof Error) {
-    if (error.message.includes('Network Error')) {
-      return '后端接口连接异常'
-    }
-    if (error.message.includes('timeout')) {
-      return '系统接口请求超时'
-    }
-    return error.message
-  }
-  if (typeof error === 'string') {
-    return error
-  }
-  return ''
-}
-
-function isUserCancel(error: unknown) {
-  return error === 'cancel' || error === 'close'
 }
 
 function showDeleteError(error: unknown) {

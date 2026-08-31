@@ -177,6 +177,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { deleteFile, deleteFiles, downloadFile, getFileDetail, queryFiles, uploadFile } from '@/api/file'
 import { useAuthStore } from '@/stores/auth'
 import type { ManagedFileRecord, FileUploadFormModel } from '@/types/file'
+import { getRequestErrorMessage as getOperationErrorMessage, isUserCancel } from '@/utils/error'
 import { buildConditions } from '@/utils/query'
 
 type UnknownRecord = Record<string, unknown>
@@ -247,20 +248,6 @@ function warnNoPermission() {
 function clearSelectedFiles() {
   selectedFiles.value = []
   fileTableRef.value?.clearSelection()
-}
-
-function getOperationErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message
-  }
-  if (typeof error === 'string') {
-    return error
-  }
-  return ''
-}
-
-function isUserCancel(error: unknown) {
-  return error === 'cancel' || error === 'close'
 }
 
 function showDeleteError(error: unknown) {

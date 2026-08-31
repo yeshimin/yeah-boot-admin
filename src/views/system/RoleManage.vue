@@ -194,10 +194,10 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, reactive, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules, TableInstance, TreeInstance } from 'element-plus'
+import { useAuthContextRefresh } from '@/composables/useAuthContextRefresh'
 import { useAuthStore } from '@/stores/auth'
 import {
   createRole,
@@ -215,6 +215,7 @@ import type {
   RoleUpdateRequest,
   SysRoleListItem,
 } from '@/types/upms'
+import { getRequestErrorMessage as getDeleteErrorMessage, isUserCancel } from '@/utils/error'
 import { buildConditions } from '@/utils/query'
 import { formatDisabledName, isDisabledStatus } from '@/utils/status'
 
@@ -228,8 +229,7 @@ function formatResourceTreeLabel(data: ResourceTreeNode) {
 }
 
 const authStore = useAuthStore()
-const route = useRoute()
-const router = useRouter()
+const refreshAuthContextSilently = useAuthContextRefresh()
 const canCreateRole = computed(() => authStore.hasPermission('admin:sysRole:create'))
 const canUpdateRole = computed(() => authStore.hasPermission('admin:sysRole:update'))
 const canDeleteRole = computed(() => authStore.hasPermission('admin:sysRole:delete'))
@@ -290,17 +290,6 @@ const hasRoleRowActions = computed(() => (
 
 function warnNoPermission() {
   ElMessage.warning('暂无操作权限')
-}
-
-async function refreshAuthContextSilently() {
-  try {
-    await authStore.refreshProfile()
-    if (!authStore.canAccessPath(route.path)) {
-      await router.replace(authStore.firstAccessiblePath)
-    }
-  } catch {
-    // Ignore auth-context refresh failures here; backend realtime authorization is still the final guard.
-  }
 }
 
 const clearSelectedRoles = () => {
@@ -431,34 +420,6 @@ const handleEditRole = async (row: SysRoleListItem) => {
     status: response.data.status || '1',
   })
   dialogVisible.value = true
-}
-
-function getDeleteErrorMessage(error: unknown) {
-  const responseMessage = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
-  if (responseMessage) {
-    return responseMessage
-  }
-  const responseStatus = (error as { response?: { status?: number } } | undefined)?.response?.status
-  if (responseStatus) {
-    return `系统接口 ${responseStatus} 异常`
-  }
-  if (error instanceof Error) {
-    if (error.message.includes('Network Error')) {
-      return '后端接口连接异常'
-    }
-    if (error.message.includes('timeout')) {
-      return '系统接口请求超时'
-    }
-    return error.message
-  }
-  if (typeof error === 'string') {
-    return error
-  }
-  return ''
-}
-
-function isUserCancel(error: unknown) {
-  return error === 'cancel' || error === 'close'
 }
 
 function showDeleteError(error: unknown) {

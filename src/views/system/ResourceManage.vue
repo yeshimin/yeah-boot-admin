@@ -462,10 +462,10 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import { Grid, Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useAuthContextRefresh } from '@/composables/useAuthContextRefresh'
 import { useAuthStore } from '@/stores/auth'
 import IconSelectPopover from '@/components/layout/IconSelectPopover.vue'
 import {
@@ -490,6 +490,7 @@ import {
   updateResourceGroup,
 } from '@/api/upms'
 import type { ResourceTreeNode, SysResGroupTreeNode, SysResMountItem } from '@/types/upms'
+import { getRequestErrorMessage as getErrorMessage, isUserCancel } from '@/utils/error'
 import { formatDisabledName, isDisabledStatus } from '@/utils/status'
 
 type ResourceTab = 'view' | 'api'
@@ -502,8 +503,7 @@ interface TreeSelectOption {
 }
 
 const authStore = useAuthStore()
-const route = useRoute()
-const router = useRouter()
+const refreshAuthContextSilently = useAuthContextRefresh()
 const canCreateResource = computed(() => authStore.hasPermission('admin:sysRes:create'))
 const canUpdateResource = computed(() => authStore.hasPermission('admin:sysRes:update'))
 const canDeleteResource = computed(() => authStore.hasPermission('admin:sysRes:delete'))
@@ -722,17 +722,6 @@ async function handleTabChange() {
 
 function warnNoPermission() {
   ElMessage.warning('暂无操作权限')
-}
-
-async function refreshAuthContextSilently() {
-  try {
-    await authStore.refreshProfile()
-    if (!authStore.canAccessPath(route.path)) {
-      await router.replace(authStore.firstAccessiblePath)
-    }
-  } catch {
-    // 权限上下文刷新失败时，不影响当前管理动作的成功提示；后续请求仍会由后端实时鉴权兜底。
-  }
 }
 
 function getResourceRowKey(row: ResourceTreeNode) {
@@ -992,34 +981,6 @@ function handleEditApiGroup(row: ResourceTreeNode) {
     remark: row.remark || '',
   })
   groupDialogVisible.value = true
-}
-
-function getErrorMessage(error: unknown) {
-  const responseMessage = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
-  if (responseMessage) {
-    return responseMessage
-  }
-  const responseStatus = (error as { response?: { status?: number } } | undefined)?.response?.status
-  if (responseStatus) {
-    return `系统接口 ${responseStatus} 异常`
-  }
-  if (error instanceof Error) {
-    if (error.message.includes('Network Error')) {
-      return '后端接口连接异常'
-    }
-    if (error.message.includes('timeout')) {
-      return '系统接口请求超时'
-    }
-    return error.message
-  }
-  if (typeof error === 'string') {
-    return error
-  }
-  return ''
-}
-
-function isUserCancel(error: unknown) {
-  return error === 'cancel' || error === 'close'
 }
 
 function showDeleteError(error: unknown) {

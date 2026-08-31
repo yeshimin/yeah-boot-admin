@@ -231,6 +231,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { createDict, deleteDicts, getDictDetail, getDictTree, updateDict } from '@/api/upms'
 import type { SysDictTreeNode } from '@/types/upms'
+import { getRequestErrorMessage as getDeleteErrorMessage, isUserCancel } from '@/utils/error'
 
 type DictParentOption = {
   id: number
@@ -422,34 +423,6 @@ async function handleEdit(row: SysDictTreeNode) {
   }
   dialogTitle.value = '编辑字典节点'
   dialogVisible.value = true
-}
-
-function getDeleteErrorMessage(error: unknown) {
-  const responseMessage = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
-  if (responseMessage) {
-    return responseMessage
-  }
-  const responseStatus = (error as { response?: { status?: number } } | undefined)?.response?.status
-  if (responseStatus) {
-    return `系统接口 ${responseStatus} 异常`
-  }
-  if (error instanceof Error) {
-    if (error.message.includes('Network Error')) {
-      return '后端接口连接异常'
-    }
-    if (error.message.includes('timeout')) {
-      return '系统接口请求超时'
-    }
-    return error.message
-  }
-  if (typeof error === 'string') {
-    return error
-  }
-  return ''
-}
-
-function isUserCancel(error: unknown) {
-  return error === 'cancel' || error === 'close'
 }
 
 function isChildNodeDeleteBlocked(error: unknown) {
