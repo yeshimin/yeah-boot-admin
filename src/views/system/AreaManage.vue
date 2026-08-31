@@ -391,13 +391,13 @@ function hydrateLeftTreeNodeChildren(node: AreaTreeNode) {
   treeRef.value?.updateKeyChildren(node.treeKey, children)
 }
 
-function normalizeAreaNode(node: unknown, level: AreaNodeLevel, parentId = 0): AreaTreeNode {
+function normalizeAreaNode(node: unknown, level: AreaNodeLevel): AreaTreeNode {
   const raw = (node || {}) as UnknownRecord
   const currentId = toNumber(raw.id, raw.provinceId, raw.cityId, raw.districtId, raw.countyId)
   const nextLevel = Math.min(level + 1, 3) as AreaNodeLevel
   const currentCode = toText(raw.code, raw.areaCode, raw.provinceCode, raw.cityCode, raw.districtCode, raw.countyCode, raw.adcode)
   const children = Array.isArray(raw.children)
-    ? raw.children.map((child) => normalizeAreaNode(child, nextLevel, currentId))
+    ? raw.children.map((child) => normalizeAreaNode(child, nextLevel))
     : []
 
   return {
@@ -416,8 +416,8 @@ function normalizeAreaTree(nodes: unknown[]) {
   return nodes.map((node) => normalizeAreaNode(node, 1))
 }
 
-function normalizeAreaListRows(nodes: unknown[], level: AreaNodeLevel, parentId = 0) {
-  return nodes.map((node) => normalizeAreaNode(node, level, parentId))
+function normalizeAreaListRows(nodes: unknown[], level: AreaNodeLevel) {
+  return nodes.map((node) => normalizeAreaNode(node, level))
 }
 
 function findNodeByTreeKey(nodes: AreaTreeNode[], treeKey: string): AreaTreeNode | null {
@@ -741,7 +741,7 @@ async function fetchChildRows(node: AreaTreeNode) {
         parentCode,
       })
 
-  return normalizeAreaListRows(response.data?.records || [], childLevel, node.id)
+  return normalizeAreaListRows(response.data?.records || [], childLevel)
 }
 
 async function loadCurrentNodeContext(node: AreaTreeNode) {

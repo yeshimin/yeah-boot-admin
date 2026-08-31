@@ -16,6 +16,8 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 
+defineOptions({ name: 'ServerErrorView' })
+
 const router = useRouter()
 
 const goHome = () => {

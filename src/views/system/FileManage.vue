@@ -279,21 +279,6 @@ function toText(...values: unknown[]) {
   return ''
 }
 
-function toBooleanLike(value: unknown) {
-  if (typeof value === 'boolean') {
-    return value
-  }
-  if (typeof value === 'string') {
-    if (value === 'true' || value === '1') {
-      return true
-    }
-    if (value === 'false' || value === '0') {
-      return false
-    }
-  }
-  return value as boolean | string | undefined
-}
-
 function normalizeFileRecord(record: unknown): ManagedFileRecord {
   const raw = (record || {}) as UnknownRecord
   return {

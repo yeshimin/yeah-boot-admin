@@ -296,7 +296,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import type { ElTree } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import type { FormInstance, FormRules, TableInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -323,6 +323,14 @@ type SelectOption = {
 
 type UserRelationKey = 'orgIds' | 'postIds' | 'roleIds'
 
+interface UserListItem extends SysUserVo {
+  nickname: string
+  orgNames: string
+  postNames: string
+  roleNames: string
+  remark: string
+}
+
 const authStore = useAuthStore()
 const canCreateUser = computed(() => authStore.hasPermission('admin:sysUser:create'))
 const canViewUserDetail = computed(() => authStore.hasPermission('admin:sysUser:detail'))
@@ -331,7 +339,7 @@ const canDeleteUser = computed(() => authStore.hasPermission('admin:sysUser:dele
 
 // 表格加载状态
 const tableLoading = ref(false)
-const userTableRef = ref<{ clearSelection: () => void }>()
+const userTableRef = ref<TableInstance>()
 
 // 搜索表单
 const searchForm = reactive({
@@ -349,7 +357,7 @@ const pagination = reactive({
 })
 
 // 选中的用户列表
-const selectedUsers = ref<any[]>([])
+const selectedUsers = ref<UserListItem[]>([])
 const orgOptions = ref<SelectOption[]>([])
 const postOptions = ref<SelectOption[]>([])
 const roleOptions = ref<SelectOption[]>([])
@@ -363,7 +371,7 @@ const orgTreeProps = {
 }
 
 // 用户列表数据
-const userList = ref<any[]>([])
+const userList = ref<UserListItem[]>([])
 
 // 弹窗控制
 const dialogVisible = ref(false)
@@ -607,7 +615,7 @@ const handleCurrentChange = async (page: number) => {
 }
 
 // 选择用户变化
-const handleSelectionChange = (selection: any[]) => {
+const handleSelectionChange = (selection: UserListItem[]) => {
   selectedUsers.value = selection
 }
 
@@ -622,7 +630,7 @@ const handleAddUser = () => {
   dialogVisible.value = true
 }
 
-const handleViewUser = async (row: any) => {
+const handleViewUser = async (row: UserListItem) => {
   if (!canViewUserDetail.value) {
     warnNoPermission()
     return
@@ -633,7 +641,7 @@ const handleViewUser = async (row: any) => {
 }
 
 // 编辑用户
-const handleEditUser = async (row: any) => {
+const handleEditUser = async (row: UserListItem) => {
   if (!canUpdateUser.value) {
     warnNoPermission()
     return
@@ -699,7 +707,7 @@ function showSubmitError(error: unknown, fallbackMessage: string) {
 }
 
 // 删除用户
-const handleDeleteUser = async (row: any) => {
+const handleDeleteUser = async (row: UserListItem) => {
   if (!canDeleteUser.value) {
     warnNoPermission()
     return
@@ -752,7 +760,7 @@ const handleBatchDeleteUsers = async () => {
 }
 
 // 状态变化
-const handleStatusChange = async (row: any) => {
+const handleStatusChange = async (row: UserListItem) => {
   const nextStatus = row.status
   const previousStatus = nextStatus === '1' ? '2' : '1'
   if (!canUpdateUser.value) {
@@ -787,7 +795,7 @@ const handleStatusChange = async (row: any) => {
 }
 
 // 重置密码
-const handleResetPassword = async (row: any) => {
+const handleResetPassword = async (row: UserListItem) => {
   if (!canUpdateUser.value) {
     warnNoPermission()
     return

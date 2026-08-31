@@ -463,7 +463,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { Grid, Plus } from '@element-plus/icons-vue'
-import type { FormInstance, FormRules } from 'element-plus'
+import type { FormInstance, FormRules, TreeInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthContextRefresh } from '@/composables/useAuthContextRefresh'
 import { useAuthStore } from '@/stores/auth'
@@ -601,7 +601,7 @@ const groupForm = reactive({
 
 const mountDialogVisible = ref(false)
 const mountSubmitting = ref(false)
-const mountTreeRef = ref<any>()
+const mountTreeRef = ref<TreeInstance>()
 const mountTargetResource = ref<ResourceTreeNode | null>(null)
 const mountApiTree = ref<ResourceTreeNode[]>([])
 const mountedApiKeys = ref<string[]>([])

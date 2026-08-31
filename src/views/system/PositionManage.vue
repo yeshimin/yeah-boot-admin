@@ -162,9 +162,10 @@
 import { computed, ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import type { FormInstance, FormRules, TableInstance } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { createPost, deletePosts, getPostDetail, queryPosts, updatePost } from '@/api/upms'
+import type { SysPostEntity } from '@/types/upms'
 import { getRequestErrorMessage as getDeleteErrorMessage, isUserCancel } from '@/utils/error'
 import { buildConditions } from '@/utils/query'
 
@@ -175,7 +176,7 @@ const canDeletePosition = computed(() => authStore.hasPermission('admin:sysPost:
 
 // 表格加载状态
 const tableLoading = ref(false)
-const positionTableRef = ref<{ clearSelection: () => void }>()
+const positionTableRef = ref<TableInstance>()
 
 // 搜索表单
 const searchForm = reactive({
@@ -191,10 +192,10 @@ const pagination = reactive({
 })
 
 // 选中的岗位列表
-const selectedPositions = ref<any[]>([])
+const selectedPositions = ref<SysPostEntity[]>([])
 
 // 岗位列表数据
-const positionList = ref<any[]>([])
+const positionList = ref<SysPostEntity[]>([])
 
 // 弹窗控制
 const dialogVisible = ref(false)
@@ -304,7 +305,7 @@ const handleCurrentChange = async (page: number) => {
 }
 
 // 选择岗位变化
-const handleSelectionChange = (selection: any[]) => {
+const handleSelectionChange = (selection: SysPostEntity[]) => {
   selectedPositions.value = selection
 }
 
@@ -320,7 +321,7 @@ const handleAddPosition = () => {
 }
 
 // 编辑岗位
-const handleEditPosition = async (row: any) => {
+const handleEditPosition = async (row: SysPostEntity) => {
   if (!canUpdatePosition.value) {
     warnNoPermission()
     return
@@ -362,7 +363,7 @@ function showSubmitError(error: unknown, fallbackMessage: string) {
 }
 
 // 删除岗位
-const handleDeletePosition = async (row: any) => {
+const handleDeletePosition = async (row: SysPostEntity) => {
   if (!canDeletePosition.value) {
     warnNoPermission()
     return
@@ -415,7 +416,7 @@ const handleBatchDeletePositions = async () => {
 }
 
 // 状态变化
-const handleStatusChange = async (row: any) => {
+const handleStatusChange = async (row: SysPostEntity) => {
   const nextStatus = row.status
   const previousStatus = nextStatus === '1' ? '2' : '1'
   if (!canUpdatePosition.value) {

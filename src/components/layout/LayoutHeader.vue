@@ -52,6 +52,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import type { ResourceTreeNode } from '@/types/upms'
 import { DEFAULT_AVATAR_URL, resolveAvatarUrl } from '@/utils/avatar'
 
 const router = useRouter()
@@ -71,7 +72,7 @@ const defaultAvatar = DEFAULT_AVATAR_URL
 const avatarLoadFailed = ref(false)
 
 function findMenuTrail(
-  nodes: Array<{ name: string; path?: string; children?: Array<any> }>,
+  nodes: ResourceTreeNode[],
   targetPath: string,
   trail: Array<{ title: string; path?: string }> = [],
 ): Array<{ title: string; path?: string }> | null {

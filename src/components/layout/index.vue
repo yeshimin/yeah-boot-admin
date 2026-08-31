@@ -20,6 +20,8 @@ import LayoutContent from './LayoutContent.vue'
 import LayoutTabs from './LayoutTabs.vue'
 import { useAppStore } from '@/stores/app'
 
+defineOptions({ name: 'AdminLayout' })
+
 const appStore = useAppStore()
 </script>
 

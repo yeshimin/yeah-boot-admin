@@ -12,6 +12,8 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 
+defineOptions({ name: 'NotFoundView' })
+
 const router = useRouter()
 
 const goHome = () => {
