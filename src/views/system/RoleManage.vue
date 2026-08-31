@@ -224,7 +224,7 @@ function isDisabledResource(data: ResourceTreeNode) {
 }
 
 function formatResourceTreeLabel(data: ResourceTreeNode) {
-  const typeSuffix = data.typeName ? `（${data.typeName}${data.mounted ? '·挂载' : ''}）` : ''
+  const typeSuffix = data.typeName ? `（${data.typeName}）` : ''
   return formatDisabledName(`${data.name}${typeSuffix}`, data.status)
 }
 
