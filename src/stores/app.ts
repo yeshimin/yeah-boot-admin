@@ -28,6 +28,10 @@ export const useAppStore = defineStore('app', () => {
     pageTags.value = pageTags.value.filter((item) => item.path !== path)
   }
 
+  function removeOtherPageTags(path: string) {
+    pageTags.value = pageTags.value.filter((item) => item.path === path)
+  }
+
   function clearPageTags() {
     pageTags.value = []
   }
@@ -38,6 +42,7 @@ export const useAppStore = defineStore('app', () => {
     toggleSidebar,
     addPageTag,
     removePageTag,
+    removeOtherPageTags,
     clearPageTags,
   }
 })
