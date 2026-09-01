@@ -226,6 +226,7 @@ import {
   queryStorageFiles,
   uploadStorageFile,
 } from '@/api/storage'
+import type { DeleteStorageFilesRequest } from '@/api/storage'
 import { STORAGE_UPLOAD_PATH } from '@/constants/storage'
 import { useAuthStore } from '@/stores/auth'
 import type { ManagedStorageRecord, StorageUploadFormModel } from '@/types/storage'
@@ -555,11 +556,28 @@ async function handleDelete(row: ManagedStorageRecord) {
       cancelButtonText: '取消',
       type: 'warning',
     })
-    await deleteStorageFile(row.fileKey, { suppressErrorMessage: true })
+    const force = isTrueLike(row.isUsed)
+    if (force) {
+      await confirmForceDelete('该存储文件正在被业务使用，强制删除可能导致相关图片或附件无法访问，是否继续？')
+    }
+    await deleteStorageFile(row.fileKey, { force, suppressErrorMessage: true })
     ElMessage.success('删除成功')
     await getStorageList()
   } catch (error) {
     if (isUserCancel(error)) {
+      return
+    }
+    if (isStorageInUseError(error)) {
+      try {
+        await confirmForceDelete('该存储文件正在被业务使用，强制删除可能导致相关图片或附件无法访问，是否继续？')
+        await deleteStorageFile(row.fileKey, { force: true, suppressErrorMessage: true })
+        ElMessage.success('强制删除成功')
+        await getStorageList()
+      } catch (forceError) {
+        if (!isUserCancel(forceError)) {
+          showDeleteError(forceError)
+        }
+      }
       return
     }
     showDeleteError(error)
@@ -580,7 +598,7 @@ async function handleBatchDelete() {
   }
 
   const selectedCount = selectedStorageFiles.value.length
-  const deletePayload = ids.length === selectedCount ? { ids } : { fileKeys }
+  const deletePayload: DeleteStorageFilesRequest = ids.length === selectedCount ? { ids } : { fileKeys }
 
   try {
     await ElMessageBox.confirm(`确定要删除选中的 ${selectedCount} 个存储文件吗？`, '警告', {
@@ -588,7 +606,11 @@ async function handleBatchDelete() {
       cancelButtonText: '取消',
       type: 'warning',
     })
-    await deleteStorageFiles(deletePayload, { suppressErrorMessage: true })
+    const force = selectedStorageFiles.value.some((item) => isTrueLike(item.isUsed))
+    if (force) {
+      await confirmForceDelete('选中的存储文件中包含正在使用的文件，强制删除可能导致相关图片或附件无法访问，是否继续？')
+    }
+    await deleteStorageFiles({ ...deletePayload, force }, { suppressErrorMessage: true })
     clearSelectedStorageFiles()
     ElMessage.success('批量删除成功')
     await getStorageList()
@@ -596,8 +618,38 @@ async function handleBatchDelete() {
     if (isUserCancel(error)) {
       return
     }
+    if (isStorageInUseError(error)) {
+      try {
+        await confirmForceDelete('选中的存储文件中包含正在使用的文件，强制删除可能导致相关图片或附件无法访问，是否继续？')
+        await deleteStorageFiles({ ...deletePayload, force: true }, { suppressErrorMessage: true })
+        clearSelectedStorageFiles()
+        ElMessage.success('批量强制删除成功')
+        await getStorageList()
+      } catch (forceError) {
+        if (!isUserCancel(forceError)) {
+          showDeleteError(forceError)
+        }
+      }
+      return
+    }
     showDeleteError(error)
   }
+}
+
+function isTrueLike(value: boolean | string | undefined) {
+  return value === true || value === 'true' || value === '1'
+}
+
+function isStorageInUseError(error: unknown) {
+  return getOperationErrorMessage(error).includes('正在使用')
+}
+
+function confirmForceDelete(message: string) {
+  return ElMessageBox.confirm(message, '强制删除确认', {
+    confirmButtonText: '强制删除',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
 }
 
 function formatStorageType(value?: number) {

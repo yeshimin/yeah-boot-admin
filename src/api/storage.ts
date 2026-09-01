@@ -56,10 +56,19 @@ export function getStorageDetail(id: number) {
 export interface DeleteStorageFilesRequest {
   fileKeys?: string[]
   ids?: number[]
+  force?: boolean
 }
 
-export function deleteStorageFile(fileKey: string, options?: { suppressErrorMessage?: boolean }) {
-  return deleteStorageFiles([fileKey], options)
+export interface DeleteStorageFileOptions {
+  force?: boolean
+  suppressErrorMessage?: boolean
+}
+
+export function deleteStorageFile(fileKey: string, options?: DeleteStorageFileOptions) {
+  return deleteStorageFiles(
+    { fileKeys: [fileKey], force: options?.force },
+    { suppressErrorMessage: options?.suppressErrorMessage },
+  )
 }
 
 export function deleteStorageFiles(payload: string[] | DeleteStorageFilesRequest, options?: { suppressErrorMessage?: boolean }) {
