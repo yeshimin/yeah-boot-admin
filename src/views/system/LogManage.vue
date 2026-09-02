@@ -151,6 +151,7 @@ async function getLogList() {
         { field: 'category', operator: 'like', value: searchForm.category },
         { field: 'event', operator: 'like', value: searchForm.event },
         { field: 'createBy', operator: 'like', value: searchForm.createBy },
+        { field: 'id', operator: 'sort', value: 'desc' },
       ]),
       success: searchForm.success || undefined,
     })
