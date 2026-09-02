@@ -128,11 +128,12 @@ const pagination = reactive({
 })
 
 const TRIGGER_TYPE_LABELS: Record<string, string> = {
-  '1': '系统自动',
-  '2': '用户手动',
+  '1': '系统触发',
+  '2': '用户触发',
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
+  '0': '无',
   '1': '鉴权相关',
   '2': '数据操作',
   '3': '定时任务',
