@@ -65,30 +65,32 @@
         <el-table-column prop="createTime" label="创建时间" min-width="160"></el-table-column>
         <el-table-column v-if="hasRoleRowActions" label="操作" min-width="180" fixed="right">
           <template #default="scope">
-            <el-button
-              v-if="canUpdateRole"
-              type="primary"
-              size="small"
-              @click="handleEditRole(scope.row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              v-if="canAssignRoleResources"
-              type="success"
-              size="small"
-              @click="handleAssignPermission(scope.row)"
-            >
-              分配权限
-            </el-button>
-            <el-button
-              v-if="canDeleteRole"
-              type="danger"
-              size="small"
-              @click="handleDeleteRole(scope.row)"
-            >
-              删除
-            </el-button>
+            <div class="table-row-actions">
+              <el-button
+                v-if="canUpdateRole"
+                link
+                type="primary"
+                @click="handleEditRole(scope.row)"
+              >
+                编辑
+              </el-button>
+              <el-button
+                v-if="canAssignRoleResources"
+                link
+                type="primary"
+                @click="handleAssignPermission(scope.row)"
+              >
+                分配权限
+              </el-button>
+              <el-button
+                v-if="canDeleteRole"
+                link
+                type="danger"
+                @click="handleDeleteRole(scope.row)"
+              >
+                删除
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>

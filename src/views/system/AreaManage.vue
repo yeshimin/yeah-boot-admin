@@ -119,7 +119,7 @@
           <el-table-column prop="createTime" label="创建时间" width="176" show-overflow-tooltip />
           <el-table-column v-if="hasChildRowActions" label="操作" width="104">
             <template #default="{ row }">
-              <div class="child-row-actions">
+              <div class="table-row-actions">
                 <el-button
                   v-if="canUpdateArea(row.level)"
                   link
@@ -1008,18 +1008,6 @@ void loadAreaTree()
 
 .child-table :deep(.el-table__cell) {
   padding: 8px 0;
-}
-
-.child-row-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.child-row-actions :deep(.el-button) {
-  min-width: 0;
-  margin-left: 0;
 }
 
 @media (max-width: 992px) {

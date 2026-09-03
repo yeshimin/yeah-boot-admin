@@ -58,7 +58,9 @@
       <el-table-column prop="createTime" label="时间" min-width="180"></el-table-column>
       <el-table-column v-if="canViewLogDetail" label="操作" width="90" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openDetail(row)">详情</el-button>
+          <div class="table-row-actions">
+            <el-button link type="primary" @click="openDetail(row)">详情</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>

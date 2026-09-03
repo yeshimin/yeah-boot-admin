@@ -108,47 +108,48 @@
             <el-table-column prop="createTime" label="创建时间" min-width="160"></el-table-column>
             <el-table-column v-if="hasUserRowActions" label="操作" min-width="200" fixed="right">
               <template #default="scope">
-                <el-button
-                  v-if="canViewUserDetail"
-                  type="info"
-                  size="small"
-                  @click="handleViewUser(scope.row)"
-                >
-                  详情
-                </el-button>
-                <el-button
-                  v-if="canUpdateUser"
-                  type="primary"
-                  size="small"
-                  @click="handleEditUser(scope.row)"
-                >
-                  编辑
-                </el-button>
-                <el-dropdown
-                  v-if="hasMoreUserActions"
-                  class="user-more-dropdown"
-                  trigger="click"
-                  @command="handleUserMoreCommand($event, scope.row)"
-                >
-                  <el-button size="small">
-                    更多<el-icon class="more-arrow"><ArrowDown /></el-icon>
+                <div class="table-row-actions">
+                  <el-button
+                    v-if="canViewUserDetail"
+                    link
+                    type="primary"
+                    @click="handleViewUser(scope.row)"
+                  >
+                    详情
                   </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item v-if="canUpdateUser" command="resetPassword">重置密码</el-dropdown-item>
-                      <el-dropdown-item v-if="canClearLoginLimit" command="clearLoginLimit">
-                        解除登录限制
-                      </el-dropdown-item>
-                      <el-dropdown-item
-                        v-if="canDeleteUser"
-                        command="delete"
-                        :divided="canUpdateUser || canClearLoginLimit"
-                      >
-                        删除
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
+                  <el-button
+                    v-if="canUpdateUser"
+                    link
+                    type="primary"
+                    @click="handleEditUser(scope.row)"
+                  >
+                    编辑
+                  </el-button>
+                  <el-dropdown
+                    v-if="hasMoreUserActions"
+                    trigger="click"
+                    @command="handleUserMoreCommand($event, scope.row)"
+                  >
+                    <el-button link type="primary">
+                      更多<el-icon class="more-arrow"><ArrowDown /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item v-if="canUpdateUser" command="resetPassword">重置密码</el-dropdown-item>
+                        <el-dropdown-item v-if="canClearLoginLimit" command="clearLoginLimit">
+                          解除登录限制
+                        </el-dropdown-item>
+                        <el-dropdown-item
+                          v-if="canDeleteUser"
+                          command="delete"
+                          :divided="canUpdateUser || canClearLoginLimit"
+                        >
+                          删除
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -1024,7 +1025,4 @@ watch(() => userForm.roleIds, (value) => {
   margin-left: 4px;
 }
 
-.user-more-dropdown {
-  margin-left: 8px;
-}
 </style>

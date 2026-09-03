@@ -71,22 +71,24 @@
         <el-table-column prop="createTime" label="创建时间" min-width="160"></el-table-column>
         <el-table-column v-if="hasPositionRowActions" label="操作" min-width="180" fixed="right">
           <template #default="scope">
-            <el-button
-              v-if="canUpdatePosition"
-              type="primary"
-              size="small"
-              @click="handleEditPosition(scope.row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              v-if="canDeletePosition"
-              type="danger"
-              size="small"
-              @click="handleDeletePosition(scope.row)"
-            >
-              删除
-            </el-button>
+            <div class="table-row-actions">
+              <el-button
+                v-if="canUpdatePosition"
+                link
+                type="primary"
+                @click="handleEditPosition(scope.row)"
+              >
+                编辑
+              </el-button>
+              <el-button
+                v-if="canDeletePosition"
+                link
+                type="danger"
+                @click="handleDeletePosition(scope.row)"
+              >
+                删除
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>

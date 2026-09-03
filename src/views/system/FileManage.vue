@@ -69,30 +69,32 @@
         <el-table-column prop="createTime" label="创建时间" width="176" show-overflow-tooltip />
         <el-table-column v-if="hasFileRowActions" label="操作" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-if="canViewFileDetail"
-              link
-              type="primary"
-              @click="handleViewDetail(row)"
-            >
-              详情
-            </el-button>
-            <el-button
-              v-if="canDownloadFile"
-              link
-              type="primary"
-              @click="handleDownload(row)"
-            >
-              下载
-            </el-button>
-            <el-button
-              v-if="canDeleteFile"
-              link
-              type="danger"
-              @click="handleDelete(row)"
-            >
-              删除
-            </el-button>
+            <div class="table-row-actions">
+              <el-button
+                v-if="canViewFileDetail"
+                link
+                type="primary"
+                @click="handleViewDetail(row)"
+              >
+                详情
+              </el-button>
+              <el-button
+                v-if="canDownloadFile"
+                link
+                type="primary"
+                @click="handleDownload(row)"
+              >
+                下载
+              </el-button>
+              <el-button
+                v-if="canDeleteFile"
+                link
+                type="danger"
+                @click="handleDelete(row)"
+              >
+                删除
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>

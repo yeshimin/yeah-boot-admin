@@ -74,30 +74,32 @@
             </el-table-column>
             <el-table-column v-if="hasViewRowActions" label="操作" min-width="220" fixed="right">
               <template #default="scope">
-                <el-button
-                  v-if="canUpdateResource"
-                  type="primary"
-                  size="small"
-                  @click="handleEditResource(scope.row, 'view')"
-                >
-                  编辑
-                </el-button>
-                <el-button
-                  v-if="canMountResource"
-                  type="success"
-                  size="small"
-                  @click="handleMountApis(scope.row)"
-                >
-                  挂载接口
-                </el-button>
-                <el-button
-                  v-if="canDeleteResource"
-                  type="danger"
-                  size="small"
-                  @click="handleDeleteResource(scope.row)"
-                >
-                  删除
-                </el-button>
+                <div class="table-row-actions">
+                  <el-button
+                    v-if="canUpdateResource"
+                    link
+                    type="primary"
+                    @click="handleEditResource(scope.row, 'view')"
+                  >
+                    编辑
+                  </el-button>
+                  <el-button
+                    v-if="canMountResource"
+                    link
+                    type="primary"
+                    @click="handleMountApis(scope.row)"
+                  >
+                    挂载接口
+                  </el-button>
+                  <el-button
+                    v-if="canDeleteResource"
+                    link
+                    type="danger"
+                    @click="handleDeleteResource(scope.row)"
+                  >
+                    删除
+                  </el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -181,58 +183,60 @@
             </el-table-column>
             <el-table-column v-if="hasApiRowActions" label="操作" min-width="260" fixed="right">
               <template #default="scope">
-                <template v-if="isApiGroupRow(scope.row)">
-                  <el-button
-                    v-if="canCreateResourceGroup && !isUngroupedApiGroup(scope.row)"
-                    type="primary"
-                    size="small"
-                    @click="handleAddApiGroup(scope.row)"
-                  >
-                    新增子分组
-                  </el-button>
-                  <el-button
-                    v-if="canCreateResource"
-                    type="success"
-                    size="small"
-                    @click="handleAddApiResource(scope.row)"
-                  >
-                    新增接口
-                  </el-button>
-                  <el-button
-                    v-if="canUpdateResourceGroup && !isUngroupedApiGroup(scope.row)"
-                    type="primary"
-                    size="small"
-                    @click="handleEditApiGroup(scope.row)"
-                  >
-                    编辑
-                  </el-button>
-                  <el-button
-                    v-if="canDeleteResourceGroup && !isUngroupedApiGroup(scope.row)"
-                    type="danger"
-                    size="small"
-                    @click="handleDeleteApiGroup(scope.row)"
-                  >
-                    删除
-                  </el-button>
-                </template>
-                <template v-else>
-                  <el-button
-                    v-if="canUpdateResource"
-                    type="primary"
-                    size="small"
-                    @click="handleEditResource(scope.row, 'api')"
-                  >
-                    编辑
-                  </el-button>
-                  <el-button
-                    v-if="canDeleteResource"
-                    type="danger"
-                    size="small"
-                    @click="handleDeleteResource(scope.row)"
-                  >
-                    删除
-                  </el-button>
-                </template>
+                <div class="table-row-actions">
+                  <template v-if="isApiGroupRow(scope.row)">
+                    <el-button
+                      v-if="canCreateResourceGroup && !isUngroupedApiGroup(scope.row)"
+                      link
+                      type="primary"
+                      @click="handleAddApiGroup(scope.row)"
+                    >
+                      新增子分组
+                    </el-button>
+                    <el-button
+                      v-if="canCreateResource"
+                      link
+                      type="primary"
+                      @click="handleAddApiResource(scope.row)"
+                    >
+                      新增接口
+                    </el-button>
+                    <el-button
+                      v-if="canUpdateResourceGroup && !isUngroupedApiGroup(scope.row)"
+                      link
+                      type="primary"
+                      @click="handleEditApiGroup(scope.row)"
+                    >
+                      编辑
+                    </el-button>
+                    <el-button
+                      v-if="canDeleteResourceGroup && !isUngroupedApiGroup(scope.row)"
+                      link
+                      type="danger"
+                      @click="handleDeleteApiGroup(scope.row)"
+                    >
+                      删除
+                    </el-button>
+                  </template>
+                  <template v-else>
+                    <el-button
+                      v-if="canUpdateResource"
+                      link
+                      type="primary"
+                      @click="handleEditResource(scope.row, 'api')"
+                    >
+                      编辑
+                    </el-button>
+                    <el-button
+                      v-if="canDeleteResource"
+                      link
+                      type="danger"
+                      @click="handleDeleteResource(scope.row)"
+                    >
+                      删除
+                    </el-button>
+                  </template>
+                </div>
               </template>
             </el-table-column>
           </el-table>

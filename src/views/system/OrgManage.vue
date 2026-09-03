@@ -60,24 +60,26 @@
         <el-table-column prop="createTime" label="创建时间" min-width="180"></el-table-column>
         <el-table-column v-if="hasOrgRowActions" label="操作" width="260" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-if="canCreateOrg"
-              link
-              type="primary"
-              @click="handleAddChild(row)"
-            >新增</el-button>
-            <el-button
-              v-if="canUpdateOrg"
-              link
-              type="primary"
-              @click="handleEdit(row)"
-            >编辑</el-button>
-            <el-button
-              v-if="canDeleteOrg"
-              link
-              type="danger"
-              @click="handleDelete(row)"
-            >删除</el-button>
+            <div class="table-row-actions">
+              <el-button
+                v-if="canCreateOrg"
+                link
+                type="primary"
+                @click="handleAddChild(row)"
+              >新增</el-button>
+              <el-button
+                v-if="canUpdateOrg"
+                link
+                type="primary"
+                @click="handleEdit(row)"
+              >编辑</el-button>
+              <el-button
+                v-if="canDeleteOrg"
+                link
+                type="danger"
+                @click="handleDelete(row)"
+              >删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
