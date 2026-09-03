@@ -135,14 +135,14 @@
                     </el-button>
                     <template #dropdown>
                       <el-dropdown-menu>
-                        <el-dropdown-item v-if="canUpdateUser" command="resetPassword">重置密码</el-dropdown-item>
+                        <el-dropdown-item v-if="canResetUserPassword" command="resetPassword">重置密码</el-dropdown-item>
                         <el-dropdown-item v-if="canClearLoginLimit" command="clearLoginLimit">
                           解除登录限制
                         </el-dropdown-item>
                         <el-dropdown-item
                           v-if="canDeleteUser"
                           command="delete"
-                          :divided="canUpdateUser || canClearLoginLimit"
+                          :divided="canResetUserPassword || canClearLoginLimit"
                         >
                           删除
                         </el-dropdown-item>
@@ -318,6 +318,7 @@ import {
   queryPosts,
   queryRoles,
   queryUsers,
+  resetUserPassword,
   updateUser,
 } from '@/api/upms'
 import type { SysOrgTreeNode, SysUserVo } from '@/types/upms'
@@ -347,6 +348,7 @@ const canCreateUser = computed(() => authStore.hasPermission('admin:sysUser:crea
 const canViewUserDetail = computed(() => authStore.hasPermission('admin:sysUser:detail'))
 const canUpdateUser = computed(() => authStore.hasPermission('admin:sysUser:update'))
 const canDeleteUser = computed(() => authStore.hasPermission('admin:sysUser:delete'))
+const canResetUserPassword = computed(() => authStore.hasPermission('view:admin:sysUser:resetPassword'))
 const canClearLoginLimit = computed(() => authStore.hasPermission('view:admin:sysUser:clearLoginLimit'))
 
 // 表格加载状态
@@ -426,7 +428,9 @@ const selectedUserIds = computed(() => (
     .filter((id) => Number.isFinite(id))
 ))
 const hasSelectedUsers = computed(() => selectedUserIds.value.length > 0)
-const hasMoreUserActions = computed(() => canUpdateUser.value || canClearLoginLimit.value || canDeleteUser.value)
+const hasMoreUserActions = computed(() => (
+  canResetUserPassword.value || canClearLoginLimit.value || canDeleteUser.value
+))
 const hasUserRowActions = computed(() => (
   canViewUserDetail.value || canUpdateUser.value || hasMoreUserActions.value
 ))
@@ -809,7 +813,7 @@ const handleStatusChange = async (row: UserListItem) => {
 
 // 重置密码
 const handleResetPassword = async (row: UserListItem) => {
-  if (!canUpdateUser.value) {
+  if (!canResetUserPassword.value) {
     warnNoPermission()
     return
   }
@@ -821,7 +825,7 @@ const handleResetPassword = async (row: UserListItem) => {
     inputErrorMessage: '密码长度不能少于 6 位',
   }).then(async ({ value }) => {
     const hashedPassword = await sha256Hex(value.trim())
-    await updateUser({
+    await resetUserPassword({
       id: row.id,
       password: hashedPassword,
     })

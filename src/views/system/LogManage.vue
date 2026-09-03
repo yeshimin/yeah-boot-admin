@@ -105,7 +105,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { queryLogs } from '@/api/upms'
+import { getLogDetail, queryLogs } from '@/api/upms'
 import { useAuthStore } from '@/stores/auth'
 import type { SysLogEntity } from '@/types/upms'
 import { buildConditions } from '@/utils/query'
@@ -142,7 +142,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   '4': '上传下载',
 }
 
-const canViewLogDetail = computed(() => authStore.hasPermission('admin:sysLog:crud:detail'))
+const canViewLogDetail = computed(() => authStore.hasPermission('view:admin:sysLog:detail'))
 
 async function getLogList() {
   tableLoading.value = true
@@ -199,12 +199,13 @@ function getCategoryLabel(value?: string) {
   return CATEGORY_LABELS[value || ''] || value || '-'
 }
 
-function openDetail(log: SysLogEntity) {
+async function openDetail(log: SysLogEntity) {
   if (!canViewLogDetail.value) {
     ElMessage.warning('暂无操作权限')
     return
   }
-  currentLog.value = log
+  const response = await getLogDetail(log.id)
+  currentLog.value = response.data
   detailVisible.value = true
 }
 

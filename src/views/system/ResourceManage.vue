@@ -60,6 +60,7 @@
             </el-table-column>
             <el-table-column prop="path" label="路径" min-width="150"></el-table-column>
             <el-table-column prop="permission" label="权限标识" min-width="170"></el-table-column>
+            <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip></el-table-column>
             <el-table-column prop="sort" label="排序" min-width="80"></el-table-column>
             <el-table-column prop="status" label="状态" min-width="90">
               <template #default="scope">
@@ -167,6 +168,7 @@
               </template>
             </el-table-column>
             <el-table-column prop="permission" label="权限标识" min-width="220"></el-table-column>
+            <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip></el-table-column>
             <el-table-column prop="sort" label="排序" min-width="80"></el-table-column>
             <el-table-column prop="status" label="状态" min-width="90">
               <template #default="scope">
@@ -434,9 +436,6 @@
       :show-close="!mountSubmitting"
       @closed="handleMountDialogClose"
     >
-      <div class="mount-tip">
-        勾选后，角色授权树中会在该视图节点下展示这些接口；实际鉴权仍然写入 sys_res / sys_role_res。
-      </div>
       <div class="mount-tree-container" v-loading="mountLoading">
         <el-tree
           ref="mountTreeRef"
@@ -445,7 +444,13 @@
           node-key="nodeKey"
           :props="mountTreeProps"
           :default-checked-keys="mountedApiKeys"
-        ></el-tree>
+        >
+          <template #default="{ data }">
+            <el-tooltip :content="data.remark || ''" :disabled="!data.remark" placement="right" :show-after="300">
+              <span class="mount-tree-label">{{ formatMountTreeLabel(data) }}</span>
+            </el-tooltip>
+          </template>
+        </el-tree>
       </div>
       <template #footer>
         <span class="dialog-footer">
@@ -1450,17 +1455,20 @@ function getResourceTypeTagType(type: number | string) {
   overflow-x: hidden;
 }
 
-.mount-tip {
-  margin-bottom: 12px;
-  color: #606266;
-  font-size: 13px;
-}
-
 .mount-tree-container {
   max-height: 420px;
   overflow-y: auto;
   border: 1px solid #ebeef5;
   border-radius: 4px;
   padding: 10px;
+}
+
+.mount-tree-label {
+  display: inline-block;
+  max-width: 500px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 </style>

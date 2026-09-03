@@ -175,7 +175,13 @@
           node-key="nodeKey"
           :props="permissionTreeProps"
           :default-checked-keys="checkedPermissions"
-        ></el-tree>
+        >
+          <template #default="{ data }">
+            <el-tooltip :content="data.remark || ''" :disabled="!data.remark" placement="right" :show-after="300">
+              <span class="permission-tree-label">{{ formatResourceTreeLabel(data) }}</span>
+            </el-tooltip>
+          </template>
+        </el-tree>
       </div>
       <template #footer>
         <span class="dialog-footer">
@@ -807,5 +813,14 @@ const handlePermissionDialogClose = () => {
 .permission-tree-container {
   max-height: 400px;
   overflow-y: auto;
+}
+
+.permission-tree-label {
+  display: inline-block;
+  max-width: 440px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 </style>

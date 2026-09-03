@@ -79,6 +79,14 @@ export function updateUser(data: Record<string, unknown>, options?: { suppressEr
   })
 }
 
+export function resetUserPassword(data: { id: number; password: string }) {
+  return request<void>({
+    url: '/admin/sysUser/resetPassword',
+    method: 'post',
+    data,
+  })
+}
+
 export function deleteUsers(ids: number[], options?: { suppressErrorMessage?: boolean }) {
   return request<void>({
     url: '/admin/sysUser/delete',
@@ -128,22 +136,6 @@ export function deleteRoles(ids: number[], options?: { suppressErrorMessage?: bo
     method: 'post',
     data: { ids },
     suppressErrorMessage: options?.suppressErrorMessage,
-  })
-}
-
-export function queryResources(params: Record<string, unknown>) {
-  return request<PageResponse<SysResEntity>>({
-    url: '/admin/sysRes/crud/query',
-    method: 'get',
-    params,
-  })
-}
-
-export function getResourceTree(params?: Record<string, unknown>) {
-  return request<ResourceTreeNode[]>({
-    url: '/admin/sysRes/tree',
-    method: 'get',
-    params,
   })
 }
 
@@ -361,14 +353,6 @@ export function deleteOrgs(ids: number[], options?: { suppressErrorMessage?: boo
   })
 }
 
-export function queryDicts(params: Record<string, unknown>) {
-  return request<PageResponse<SysDictEntity>>({
-    url: '/admin/sysDict/crud/query',
-    method: 'get',
-    params,
-  })
-}
-
 export function getDictTree(rootNodeCode?: string) {
   return request<SysDictTreeNode[]>({
     url: '/admin/sysDict/tree',
@@ -419,5 +403,13 @@ export function queryLogs(params: Record<string, unknown>) {
     url: '/admin/sysLog/crud/query',
     method: 'get',
     params,
+  })
+}
+
+export function getLogDetail(id: number) {
+  return request<SysLogEntity>({
+    url: '/admin/sysLog/detail',
+    method: 'get',
+    params: { id },
   })
 }
