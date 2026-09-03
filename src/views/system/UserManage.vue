@@ -394,6 +394,7 @@ const currentUserDetail = ref<SysUserVo | null>(null)
 
 // 用户表单引用
 const userFormRef = ref<FormInstance>()
+const originalUserRoleIds = ref<number[]>([])
 
 const createDefaultUserForm = () => ({
   id: 0,
@@ -463,9 +464,6 @@ const userRules = reactive<FormRules>({
   ],
   orgIds: [
     { required: true, message: '请选择组织', trigger: 'change' }
-  ],
-  roleIds: [
-    { required: true, message: '请选择角色', trigger: 'change' }
   ],
   postIds: [
     { required: true, message: '请选择岗位', trigger: 'change' }
@@ -662,6 +660,7 @@ const handleEditUser = async (row: UserListItem) => {
   dialogTitle.value = '编辑用户'
   const response = await getUserDetail(row.id)
   const detail = response.data
+  const roleIds = detail.roles?.map((item) => item.id) || []
   Object.assign(userForm, {
     id: detail.id,
     username: detail.username,
@@ -672,11 +671,12 @@ const handleEditUser = async (row: UserListItem) => {
     gender: detail.gender || '',
     orgIds: detail.orgs?.map((item) => item.id) || [],
     postIds: detail.posts?.map((item) => item.id) || [],
-    roleIds: detail.roles?.map((item) => item.id) || [],
+    roleIds,
     status: detail.status || '1',
     remark: detail.remark || '',
     createTime: detail.createTime || '',
   })
+  originalUserRoleIds.value = [...roleIds]
   syncLockedDisabledRelations(detail)
   dialogVisible.value = true
 }
@@ -862,6 +862,21 @@ const handleUserMoreCommand = async (command: string, row: UserListItem) => {
   }
 }
 
+function isSameIdSet(left: number[], right: number[]) {
+  if (left.length !== right.length) {
+    return false
+  }
+  const rightSet = new Set(right)
+  return left.every((id) => rightSet.has(id))
+}
+
+function isCurrentUserRoleChanged(roleIds: number[]) {
+  const currentUserId = Number(authStore.mine?.user?.id)
+  return Number.isFinite(currentUserId)
+    && userForm.id === currentUserId
+    && !isSameIdSet(originalUserRoleIds.value, roleIds)
+}
+
 // 提交用户表单
 const handleSubmitUser = async () => {
   if (userFormSubmitting.value) {
@@ -879,6 +894,13 @@ const handleSubmitUser = async () => {
     const payload = buildUserPayload()
 
     if (userForm.id) {
+      if (isCurrentUserRoleChanged(payload.roleIds)) {
+        await ElMessageBox.confirm('你正在修改当前登录用户的角色，保存后当前权限可能立即发生变化，是否继续？', '修改当前用户角色', {
+          confirmButtonText: '继续保存',
+          cancelButtonText: '取消',
+          type: 'warning',
+        })
+      }
       await updateUser(payload, { suppressErrorMessage: true })
       ElMessage.success('编辑用户成功')
     } else {
@@ -889,6 +911,9 @@ const handleSubmitUser = async () => {
     dialogVisible.value = false
     await getUserList()
   } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
     showSubmitError(error, fallbackMessage)
   } finally {
     userFormSubmitting.value = false
@@ -898,6 +923,7 @@ const handleSubmitUser = async () => {
 // 重置用户表单
 const resetUserForm = () => {
   syncLockedDisabledRelations()
+  originalUserRoleIds.value = []
   Object.assign(userForm, createDefaultUserForm())
   userFormRef.value?.clearValidate()
 }
