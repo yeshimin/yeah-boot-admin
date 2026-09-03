@@ -106,7 +106,7 @@
               </template>
             </el-table-column>
             <el-table-column prop="createTime" label="创建时间" min-width="160"></el-table-column>
-            <el-table-column v-if="hasUserRowActions" label="操作" min-width="240" fixed="right">
+            <el-table-column v-if="hasUserRowActions" label="操作" min-width="200" fixed="right">
               <template #default="scope">
                 <el-button
                   v-if="canViewUserDetail"
@@ -124,22 +124,31 @@
                 >
                   编辑
                 </el-button>
-                <el-button
-                  v-if="canUpdateUser"
-                  type="success"
-                  size="small"
-                  @click="handleResetPassword(scope.row)"
+                <el-dropdown
+                  v-if="hasMoreUserActions"
+                  class="user-more-dropdown"
+                  trigger="click"
+                  @command="handleUserMoreCommand($event, scope.row)"
                 >
-                  重置密码
-                </el-button>
-                <el-button
-                  v-if="canDeleteUser"
-                  type="danger"
-                  size="small"
-                  @click="handleDeleteUser(scope.row)"
-                >
-                  删除
-                </el-button>
+                  <el-button size="small">
+                    更多<el-icon class="more-arrow"><ArrowDown /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item v-if="canUpdateUser" command="resetPassword">重置密码</el-dropdown-item>
+                      <el-dropdown-item v-if="canClearLoginLimit" command="clearLoginLimit">
+                        解除登录限制
+                      </el-dropdown-item>
+                      <el-dropdown-item
+                        v-if="canDeleteUser"
+                        command="delete"
+                        :divided="canUpdateUser || canClearLoginLimit"
+                      >
+                        删除
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </template>
             </el-table-column>
           </el-table>
@@ -294,11 +303,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Plus } from '@element-plus/icons-vue'
+import { ArrowDown, Plus } from '@element-plus/icons-vue'
 import type { ElTree } from 'element-plus'
 import type { FormInstance, FormRules, TableInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import { clearLoginLimit } from '@/api/auth'
 import {
   createUser,
   deleteUsers,
@@ -336,6 +346,7 @@ const canCreateUser = computed(() => authStore.hasPermission('admin:sysUser:crea
 const canViewUserDetail = computed(() => authStore.hasPermission('admin:sysUser:detail'))
 const canUpdateUser = computed(() => authStore.hasPermission('admin:sysUser:update'))
 const canDeleteUser = computed(() => authStore.hasPermission('admin:sysUser:delete'))
+const canClearLoginLimit = computed(() => authStore.hasPermission('view:admin:sysUser:clearLoginLimit'))
 
 // 表格加载状态
 const tableLoading = ref(false)
@@ -413,8 +424,9 @@ const selectedUserIds = computed(() => (
     .filter((id) => Number.isFinite(id))
 ))
 const hasSelectedUsers = computed(() => selectedUserIds.value.length > 0)
+const hasMoreUserActions = computed(() => canUpdateUser.value || canClearLoginLimit.value || canDeleteUser.value)
 const hasUserRowActions = computed(() => (
-  canViewUserDetail.value || canUpdateUser.value || canDeleteUser.value
+  canViewUserDetail.value || canUpdateUser.value || hasMoreUserActions.value
 ))
 
 function warnNoPermission() {
@@ -818,6 +830,37 @@ const handleResetPassword = async (row: UserListItem) => {
   })
 }
 
+// 解除登录限制
+const handleClearLoginLimit = async (row: UserListItem) => {
+  if (!canClearLoginLimit.value) {
+    warnNoPermission()
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定要解除用户“${row.username}”在Web端的登录限制吗？`, '解除登录限制', {
+      confirmButtonText: '确定解除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await clearLoginLimit({ username: row.username })
+    ElMessage.success('登录限制已解除')
+  } catch (error) {
+    if (isUserCancel(error)) {
+      return
+    }
+  }
+}
+
+const handleUserMoreCommand = async (command: string, row: UserListItem) => {
+  if (command === 'resetPassword') {
+    await handleResetPassword(row)
+  } else if (command === 'clearLoginLimit') {
+    await handleClearLoginLimit(row)
+  } else if (command === 'delete') {
+    await handleDeleteUser(row)
+  }
+}
+
 // 提交用户表单
 const handleSubmitUser = async () => {
   if (userFormSubmitting.value) {
@@ -975,5 +1018,13 @@ watch(() => userForm.roleIds, (value) => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+.more-arrow {
+  margin-left: 4px;
+}
+
+.user-more-dropdown {
+  margin-left: 8px;
 }
 </style>

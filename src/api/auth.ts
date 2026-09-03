@@ -24,3 +24,11 @@ export function logout() {
     method: 'post',
   })
 }
+
+export function clearLoginLimit(data: { username: string; terminal?: string }) {
+  return request<void>({
+    url: '/admin/auth/clearLoginLimit',
+    method: 'post',
+    data,
+  })
+}
