@@ -104,6 +104,11 @@ export interface SysUserEntity {
   createTime?: string
 }
 
+export interface SysUserImportResultVo {
+  importedCount: number
+  generatedPasswordCount: number
+}
+
 export interface MineVo {
   user: SysUserEntity
   roles: SysRoleEntity[]

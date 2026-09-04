@@ -67,6 +67,12 @@
             >
               <el-icon><Plus /></el-icon>新增用户
             </el-button>
+            <el-button v-if="canImportUsers" type="success" @click="handleOpenImportDialog">
+              <el-icon><Upload /></el-icon>导入用户
+            </el-button>
+            <el-button v-if="canExportUsers" :loading="exportSubmitting" @click="handleExportUsers">
+              <el-icon><Download /></el-icon>{{ hasSelectedUsers ? `导出选中（${selectedUserIds.length}）` : '导出用户' }}
+            </el-button>
             <el-button
               v-if="canDeleteUser"
               type="danger"
@@ -169,6 +175,52 @@
       </div>
     </div>
 
+    <el-dialog
+      v-model="importDialogVisible"
+      title="导入用户"
+      width="520px"
+      :close-on-click-modal="!importSubmitting"
+      :close-on-press-escape="!importSubmitting"
+      :show-close="!importSubmitting"
+      @closed="handleImportDialogClosed"
+    >
+      <el-alert
+        title="用户名必填；初始密码为空时系统会自动生成随机密码，之后可通过重置密码重新设置。"
+        type="info"
+        :closable="false"
+        show-icon
+      />
+      <div class="import-template-row">
+        <el-button link type="primary" :loading="templateDownloading" @click="handleDownloadImportTemplate">
+          下载用户导入模板
+        </el-button>
+      </div>
+      <div class="import-file-row">
+        <input
+          ref="importFileInputRef"
+          class="import-file-input"
+          type="file"
+          accept=".xlsx"
+          @change="handleImportFileChange"
+        />
+        <el-button @click="importFileInputRef?.click()">选择Excel文件</el-button>
+        <span class="import-file-name">{{ importFile?.name || '未选择文件' }}</span>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button :disabled="importSubmitting" @click="importDialogVisible = false">取消</el-button>
+          <el-button
+            type="primary"
+            :loading="importSubmitting"
+            :disabled="!importFile"
+            @click="handleSubmitImport"
+          >
+            开始导入
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
     <!-- 新增/编辑用户弹窗 -->
     <el-dialog
       v-model="dialogVisible"
@@ -202,8 +254,9 @@
         </el-form-item>
         <el-form-item label="性别" prop="gender">
           <el-select v-model="userForm.gender" placeholder="请选择性别" clearable>
-            <el-option label="男" value="1"></el-option>
-            <el-option label="女" value="2"></el-option>
+            <el-option label="未知" value="0"></el-option>
+            <el-option label="男性" value="1"></el-option>
+            <el-option label="女性" value="2"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="组织" prop="orgIds">
@@ -277,7 +330,7 @@
         <el-descriptions-item label="手机号">{{ currentUserDetail.mobile || '-' }}</el-descriptions-item>
         <el-descriptions-item label="邮箱">{{ currentUserDetail.email || '-' }}</el-descriptions-item>
         <el-descriptions-item label="性别">
-          {{ currentUserDetail.gender === '1' ? '男' : currentUserDetail.gender === '2' ? '女' : '-' }}
+          {{ currentUserDetail.gender === '1' ? '男性' : currentUserDetail.gender === '2' ? '女性' : '未知' }}
         </el-descriptions-item>
         <el-descriptions-item label="状态">
           {{ currentUserDetail.status === '1' ? '启用' : '禁用' }}
@@ -304,7 +357,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { ArrowDown, Plus } from '@element-plus/icons-vue'
+import { ArrowDown, Download, Plus, Upload } from '@element-plus/icons-vue'
 import type { ElTree } from 'element-plus'
 import type { FormInstance, FormRules, TableInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -313,8 +366,11 @@ import { clearLoginLimit } from '@/api/auth'
 import {
   createUser,
   deleteUsers,
+  downloadUserImportTemplate,
+  exportUsers,
   getOrgTree,
   getUserDetail,
+  importUsers,
   queryPosts,
   queryRoles,
   queryUsers,
@@ -348,12 +404,15 @@ const canCreateUser = computed(() => authStore.hasPermission('admin:sysUser:crea
 const canViewUserDetail = computed(() => authStore.hasPermission('admin:sysUser:detail'))
 const canUpdateUser = computed(() => authStore.hasPermission('admin:sysUser:update'))
 const canDeleteUser = computed(() => authStore.hasPermission('admin:sysUser:delete'))
+const canImportUsers = computed(() => authStore.hasPermission('view:admin:sysUser:import'))
+const canExportUsers = computed(() => authStore.hasPermission('view:admin:sysUser:export'))
 const canResetUserPassword = computed(() => authStore.hasPermission('view:admin:sysUser:resetPassword'))
 const canClearLoginLimit = computed(() => authStore.hasPermission('view:admin:sysUser:clearLoginLimit'))
 
 // 表格加载状态
 const tableLoading = ref(false)
 const userTableRef = ref<TableInstance>()
+const importFileInputRef = ref<HTMLInputElement>()
 
 // 搜索表单
 const searchForm = reactive({
@@ -393,6 +452,11 @@ const dialogTitle = ref('新增用户')
 const userFormSubmitting = ref(false)
 const detailVisible = ref(false)
 const currentUserDetail = ref<SysUserVo | null>(null)
+const importDialogVisible = ref(false)
+const importFile = ref<File | null>(null)
+const importSubmitting = ref(false)
+const templateDownloading = ref(false)
+const exportSubmitting = ref(false)
 
 // 用户表单引用
 const userFormRef = ref<FormInstance>()
@@ -444,15 +508,26 @@ const clearSelectedUsers = () => {
   userTableRef.value?.clearSelection()
 }
 
+function saveDownload(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = fileName
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
+
 // 用户表单验证规则
 const userRules = reactive<FormRules>({
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
+    { min: 3, max: 32, message: '用户名长度在 3 到 32 个字符', trigger: 'blur' }
   ],
   nickname: [
     { required: true, message: '请输入昵称', trigger: 'blur' },
-    { min: 2, max: 20, message: '昵称长度在 2 到 20 个字符', trigger: 'blur' }
+    { min: 2, max: 32, message: '昵称长度在 2 到 32 个字符', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -643,6 +718,90 @@ const handleAddUser = () => {
   dialogTitle.value = '新增用户'
   resetUserForm()
   dialogVisible.value = true
+}
+
+function handleOpenImportDialog() {
+  if (!canImportUsers.value) {
+    warnNoPermission()
+    return
+  }
+  importDialogVisible.value = true
+}
+
+async function handleDownloadImportTemplate() {
+  if (!canImportUsers.value || templateDownloading.value) {
+    return
+  }
+  templateDownloading.value = true
+  try {
+    const { blob, fileName } = await downloadUserImportTemplate()
+    saveDownload(blob, fileName)
+  } finally {
+    templateDownloading.value = false
+  }
+}
+
+function handleImportFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] || null
+  if (file && !file.name.toLowerCase().endsWith('.xlsx')) {
+    ElMessage.warning('请选择.xlsx格式的用户导入文件')
+    input.value = ''
+    importFile.value = null
+    return
+  }
+  importFile.value = file
+}
+
+async function handleSubmitImport() {
+  if (!canImportUsers.value) {
+    warnNoPermission()
+    return
+  }
+  if (!importFile.value || importSubmitting.value) {
+    return
+  }
+  importSubmitting.value = true
+  try {
+    const response = await importUsers(importFile.value)
+    const generatedCount = response.data.generatedPasswordCount || 0
+    const generatedMessage = generatedCount > 0 ? `，其中${generatedCount}个用户使用随机初始密码` : ''
+    ElMessage.success(`成功导入${response.data.importedCount}个用户${generatedMessage}`)
+    importDialogVisible.value = false
+    await getUserList()
+  } finally {
+    importSubmitting.value = false
+  }
+}
+
+function handleImportDialogClosed() {
+  importFile.value = null
+  if (importFileInputRef.value) {
+    importFileInputRef.value.value = ''
+  }
+}
+
+async function handleExportUsers() {
+  if (!canExportUsers.value || exportSubmitting.value) {
+    return
+  }
+  exportSubmitting.value = true
+  try {
+    const params = hasSelectedUsers.value
+      ? { ids: selectedUserIds.value }
+      : {
+          username: searchForm.username || undefined,
+          mobile: searchForm.mobile || undefined,
+          status: searchForm.status || undefined,
+          createDateBegin: createDateRange.value[0] || undefined,
+          createDateEnd: createDateRange.value[1] || undefined,
+          orgIds: selectedOrgId.value ? [selectedOrgId.value] : undefined,
+        }
+    const { blob, fileName } = await exportUsers(params)
+    saveDownload(blob, fileName)
+  } finally {
+    exportSubmitting.value = false
+  }
 }
 
 const handleViewUser = async (row: UserListItem) => {
@@ -1053,6 +1212,28 @@ watch(() => userForm.roleIds, (value) => {
 
 .more-arrow {
   margin-left: 4px;
+}
+
+.import-template-row {
+  margin: 16px 0;
+}
+
+.import-file-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.import-file-input {
+  display: none;
+}
+
+.import-file-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #606266;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 </style>

@@ -102,9 +102,9 @@
             </el-form-item>
             <el-form-item label="性别" prop="gender">
               <el-radio-group v-model="profileForm.gender">
-                <el-radio value="0">保密</el-radio>
-                <el-radio value="1">男</el-radio>
-                <el-radio value="2">女</el-radio>
+                <el-radio value="0">未知</el-radio>
+                <el-radio value="1">男性</el-radio>
+                <el-radio value="2">女性</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-form-item class="form-actions">
@@ -245,13 +245,13 @@ const avatarPreview = computed(() => {
 
 const genderText = computed(() => {
   if (user.value?.gender === '1') {
-    return '男'
+    return '男性'
   }
   if (user.value?.gender === '2') {
-    return '女'
+    return '女性'
   }
   if (user.value?.gender === '0') {
-    return '保密'
+    return '未知'
   }
   return '-'
 })
@@ -271,7 +271,7 @@ const statusTagType = computed(() => (user.value?.status === '2' ? 'danger' : 's
 const profileRules = reactive<FormRules>({
   nickname: [
     { required: true, message: '请输入昵称', trigger: 'blur' },
-    { min: 2, max: 20, message: '昵称长度在 2 到 20 个字符', trigger: 'blur' },
+    { min: 2, max: 32, message: '昵称长度在 2 到 32 个字符', trigger: 'blur' },
   ],
   mobile: [
     {

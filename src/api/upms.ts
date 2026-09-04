@@ -18,9 +18,11 @@ import type {
   SysResMountItem,
   SysRoleEntity,
   SysRoleVo,
+  SysUserImportResultVo,
   UpdateMineRequest,
   SysUserVo,
 } from '@/types/upms'
+import { downloadByUrl, resolveApiUrl } from '@/utils/download'
 import { request } from '@/utils/request'
 
 export function getMine() {
@@ -85,6 +87,37 @@ export function resetUserPassword(data: { id: number; password: string }) {
     method: 'post',
     data,
   })
+}
+
+export function downloadUserImportTemplate() {
+  return downloadByUrl(resolveApiUrl('/admin/sysUser/importTemplate'), '用户导入模板.xlsx')
+}
+
+export function importUsers(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request<SysUserImportResultVo>({
+    url: '/admin/sysUser/import',
+    method: 'post',
+    data: formData,
+  })
+}
+
+export function exportUsers(params: Record<string, unknown>) {
+  const searchParams = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') {
+      return
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item) => searchParams.append(key, String(item)))
+      return
+    }
+    searchParams.append(key, String(value))
+  })
+  const query = searchParams.toString()
+  const path = query ? `/admin/sysUser/export?${query}` : '/admin/sysUser/export'
+  return downloadByUrl(resolveApiUrl(path), '用户数据.xlsx')
 }
 
 export function deleteUsers(ids: number[], options?: { suppressErrorMessage?: boolean }) {
