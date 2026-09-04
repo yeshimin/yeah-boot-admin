@@ -1,6 +1,6 @@
 <template>
   <aside class="sidebar-container" :class="{ 'is-collapsed': isCollapse }">
-    <div class="sidebar-logo">
+    <div class="sidebar-logo" role="button" tabindex="0" @click="openHome" @keydown.enter="openHome">
       <h1>管理后台</h1>
     </div>
     <el-scrollbar height="100%">
@@ -11,6 +11,10 @@
         :unique-opened="true"
         @select="handleMenuSelect"
       >
+        <el-menu-item index="/home">
+          <el-icon><House /></el-icon>
+          <template #title>首页</template>
+        </el-menu-item>
         <LayoutMenuNode v-for="menu in menuList" :key="menu.id" :node="menu" />
       </el-menu>
     </el-scrollbar>
@@ -21,6 +25,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { House } from '@element-plus/icons-vue'
 import LayoutMenuNode from './LayoutMenuNode.vue'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
@@ -68,6 +73,11 @@ function resolveExternalUrl(linkUrl?: string) {
 }
 
 async function handleMenuSelect(index: string) {
+  if (index === '/home') {
+    await openHome()
+    return
+  }
+
   const node = findMenuNode(menuList.value, index)
 
   if (node?.isLink) {
@@ -88,6 +98,12 @@ async function handleMenuSelect(index: string) {
 
   if (node.path !== route.path) {
     await router.push(node.path)
+  }
+}
+
+async function openHome() {
+  if (route.path !== '/home') {
+    await router.push('/home')
   }
 }
 </script>
@@ -138,6 +154,12 @@ async function handleMenuSelect(index: string) {
   align-items: center;
   justify-content: center;
   border-bottom: 1px solid #1f2d3d;
+  cursor: pointer;
+}
+
+.sidebar-logo:focus-visible {
+  outline: 2px solid #409eff;
+  outline-offset: -2px;
 }
 
 .sidebar-logo h1 {

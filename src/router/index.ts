@@ -41,6 +41,7 @@ const AreaManage = () => import('../views/system/AreaManage.vue')
 const FileManage = () => import('../views/system/FileManage.vue')
 const StorageManage = () => import('../views/system/StorageManage.vue')
 const ProfileView = () => import('../views/profile/ProfileView.vue')
+const HomeView = () => import('../views/home/HomeView.vue')
 const backendViewModules = import.meta.glob('../views/**/*.vue')
 const registeredDynamicRouteNames = new Set<string>()
 
@@ -69,9 +70,18 @@ const asyncRoutes = [
   {
     path: '/',
     component: Layout,
-    redirect: '/system/user',
+    redirect: '/home',
     meta: { title: '首页' },
     children: [
+      {
+        path: '/home',
+        name: 'home',
+        component: HomeView,
+        meta: {
+          title: '首页',
+          ignoreAccessControl: true,
+        },
+      },
       // 系统管理
       {
         path: '/profile',
