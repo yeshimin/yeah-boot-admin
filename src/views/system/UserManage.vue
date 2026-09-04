@@ -254,9 +254,9 @@
         </el-form-item>
         <el-form-item label="性别" prop="gender">
           <el-select v-model="userForm.gender" placeholder="请选择性别" clearable>
-            <el-option label="未知" value="0"></el-option>
-            <el-option label="男性" value="1"></el-option>
-            <el-option label="女性" value="2"></el-option>
+            <el-option label="未知" :value="0"></el-option>
+            <el-option label="男性" :value="1"></el-option>
+            <el-option label="女性" :value="2"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="组织" prop="orgIds">
@@ -330,7 +330,7 @@
         <el-descriptions-item label="手机号">{{ currentUserDetail.mobile || '-' }}</el-descriptions-item>
         <el-descriptions-item label="邮箱">{{ currentUserDetail.email || '-' }}</el-descriptions-item>
         <el-descriptions-item label="性别">
-          {{ currentUserDetail.gender === '1' ? '男性' : currentUserDetail.gender === '2' ? '女性' : '未知' }}
+          {{ currentUserDetail.gender === 1 ? '男性' : currentUserDetail.gender === 2 ? '女性' : '未知' }}
         </el-descriptions-item>
         <el-descriptions-item label="状态">
           {{ currentUserDetail.status === '1' ? '启用' : '禁用' }}
@@ -469,7 +469,7 @@ const createDefaultUserForm = () => ({
   password: '',
   mobile: '',
   email: '',
-  gender: '',
+  gender: 0 as number | '',
   orgIds: [] as number[],
   postIds: [] as number[],
   roleIds: [] as number[],
@@ -594,7 +594,7 @@ const buildUserPayload = () => ({
   nickname: userForm.nickname,
   mobile: userForm.mobile,
   email: userForm.email,
-  gender: userForm.gender || undefined,
+  gender: userForm.gender === '' ? undefined : userForm.gender,
   orgIds: mergeSelectedIds(userForm.orgIds, lockedDisabledRelationIds.orgIds),
   postIds: mergeSelectedIds(userForm.postIds, lockedDisabledRelationIds.postIds),
   roleIds: mergeSelectedIds(userForm.roleIds, lockedDisabledRelationIds.roleIds),
@@ -831,7 +831,7 @@ const handleEditUser = async (row: UserListItem) => {
     password: '',
     mobile: detail.mobile || '',
     email: detail.email || '',
-    gender: detail.gender || '',
+    gender: detail.gender ?? 0,
     orgIds: detail.orgs?.map((item) => item.id) || [],
     postIds: detail.posts?.map((item) => item.id) || [],
     roleIds,

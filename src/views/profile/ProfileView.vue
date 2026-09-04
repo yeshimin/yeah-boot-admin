@@ -102,9 +102,9 @@
             </el-form-item>
             <el-form-item label="性别" prop="gender">
               <el-radio-group v-model="profileForm.gender">
-                <el-radio value="0">未知</el-radio>
-                <el-radio value="1">男性</el-radio>
-                <el-radio value="2">女性</el-radio>
+                <el-radio :value="0">未知</el-radio>
+                <el-radio :value="1">男性</el-radio>
+                <el-radio :value="2">女性</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-form-item class="form-actions">
@@ -215,7 +215,7 @@ const profileForm = reactive({
   nickname: '',
   mobile: '',
   email: '',
-  gender: '0',
+  gender: 0,
   avatar: '',
 })
 
@@ -225,8 +225,8 @@ const passwordForm = reactive({
   confirmPassword: '',
 })
 
-function normalizeGender(value?: string) {
-  return ['0', '1', '2'].includes(value || '') ? String(value) : '0'
+function normalizeGender(value?: number) {
+  return [0, 1, 2].includes(value ?? -1) ? value as number : 0
 }
 
 const avatarSource = computed(() => user.value?.avatar || '')
@@ -244,13 +244,13 @@ const avatarPreview = computed(() => {
 })
 
 const genderText = computed(() => {
-  if (user.value?.gender === '1') {
+  if (user.value?.gender === 1) {
     return '男性'
   }
-  if (user.value?.gender === '2') {
+  if (user.value?.gender === 2) {
     return '女性'
   }
-  if (user.value?.gender === '0') {
+  if (user.value?.gender === 0) {
     return '未知'
   }
   return '-'
@@ -461,9 +461,9 @@ async function handleSubmitProfile() {
       avatarUploading.value = true
       const response = await uploadStorageFile({
         file: pendingAvatarFile.value,
-        storageType: '1',
-        isPublic: 'true',
-        isUsed: 'false',
+        storageType: 1,
+        isPublic: true,
+        isUsed: false,
         path: STORAGE_UPLOAD_PATH.AVATAR,
       })
       avatar = response.data.fileKey

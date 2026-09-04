@@ -3,7 +3,13 @@
     <div class="search-bar">
       <el-form :inline="true" :model="searchForm" class="search-form">
         <el-form-item label="类别">
-          <el-input v-model="searchForm.category" placeholder="请输入类别" clearable></el-input>
+          <el-select v-model="searchForm.category" placeholder="请选择类别" clearable>
+            <el-option label="无" :value="0"></el-option>
+            <el-option label="鉴权相关" :value="1"></el-option>
+            <el-option label="数据操作" :value="2"></el-option>
+            <el-option label="定时任务" :value="3"></el-option>
+            <el-option label="上传下载" :value="4"></el-option>
+          </el-select>
         </el-form-item>
         <el-form-item label="事件">
           <el-input v-model="searchForm.event" placeholder="请输入事件" clearable></el-input>
@@ -13,8 +19,8 @@
         </el-form-item>
         <el-form-item label="结果">
           <el-select v-model="searchForm.success" placeholder="请选择结果" clearable>
-            <el-option label="成功" value="1"></el-option>
-            <el-option label="失败" value="0"></el-option>
+            <el-option label="成功" :value="1"></el-option>
+            <el-option label="失败" :value="0"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -46,8 +52,8 @@
       <el-table-column prop="createBy" label="执行人" min-width="120"></el-table-column>
       <el-table-column prop="success" label="结果" width="100">
         <template #default="{ row }">
-          <el-tag :type="row.success === '1' ? 'success' : 'danger'">
-            {{ row.success === '1' ? '成功' : '失败' }}
+          <el-tag :type="row.success === 1 ? 'success' : 'danger'">
+            {{ row.success === 1 ? '成功' : '失败' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -88,7 +94,7 @@
         <el-descriptions-item label="事件">{{ currentLog.event || '-' }}</el-descriptions-item>
         <el-descriptions-item label="执行人">{{ currentLog.createBy || '-' }}</el-descriptions-item>
         <el-descriptions-item label="结果">
-          {{ currentLog.success === '1' ? '成功' : '失败' }}
+          {{ currentLog.success === 1 ? '成功' : '失败' }}
         </el-descriptions-item>
         <el-descriptions-item label="耗时">{{ currentLog.time || 0 }} ms</el-descriptions-item>
         <el-descriptions-item label="时间">{{ currentLog.createTime || '-' }}</el-descriptions-item>
@@ -117,10 +123,10 @@ const detailVisible = ref(false)
 const currentLog = ref<SysLogEntity | null>(null)
 
 const searchForm = reactive({
-  category: '',
+  category: '' as number | '',
   event: '',
   createBy: '',
-  success: '',
+  success: '' as number | '',
 })
 
 const pagination = reactive({
@@ -129,17 +135,17 @@ const pagination = reactive({
   total: 0,
 })
 
-const TRIGGER_TYPE_LABELS: Record<string, string> = {
-  '1': '系统触发',
-  '2': '用户触发',
+const TRIGGER_TYPE_LABELS: Record<number, string> = {
+  1: '系统触发',
+  2: '用户触发',
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  '0': '无',
-  '1': '鉴权相关',
-  '2': '数据操作',
-  '3': '定时任务',
-  '4': '上传下载',
+const CATEGORY_LABELS: Record<number, string> = {
+  0: '无',
+  1: '鉴权相关',
+  2: '数据操作',
+  3: '定时任务',
+  4: '上传下载',
 }
 
 const canViewLogDetail = computed(() => authStore.hasPermission('view:admin:sysLog:detail'))
@@ -151,12 +157,12 @@ async function getLogList() {
       current: pagination.currentPage,
       size: pagination.pageSize,
       conditions_: buildConditions([
-        { field: 'category', operator: 'like', value: searchForm.category },
+        { field: 'category', operator: 'eq', value: searchForm.category },
         { field: 'event', operator: 'like', value: searchForm.event },
         { field: 'createBy', operator: 'like', value: searchForm.createBy },
         { field: 'id', operator: 'sort', value: 'desc' },
       ]),
-      success: searchForm.success || undefined,
+      success: searchForm.success === '' ? undefined : searchForm.success,
     })
     logList.value = response.data.records
     pagination.total = response.data.total
@@ -191,12 +197,12 @@ async function handleCurrentChange(page: number) {
   await getLogList()
 }
 
-function getTriggerTypeLabel(value?: string) {
-  return TRIGGER_TYPE_LABELS[value || ''] || value || '-'
+function getTriggerTypeLabel(value?: number) {
+  return value === undefined ? '-' : TRIGGER_TYPE_LABELS[value] || String(value)
 }
 
-function getCategoryLabel(value?: string) {
-  return CATEGORY_LABELS[value || ''] || value || '-'
+function getCategoryLabel(value?: number) {
+  return value === undefined ? '-' : CATEGORY_LABELS[value] || String(value)
 }
 
 async function openDetail(log: SysLogEntity) {

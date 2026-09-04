@@ -23,14 +23,14 @@
         </el-form-item>
         <el-form-item label="公开">
           <el-select v-model="searchForm.isPublic" placeholder="请选择" clearable>
-            <el-option label="是" value="true" />
-            <el-option label="否" value="false" />
+            <el-option label="是" :value="true" />
+            <el-option label="否" :value="false" />
           </el-select>
         </el-form-item>
         <el-form-item label="已使用">
           <el-select v-model="searchForm.isUsed" placeholder="请选择" clearable>
-            <el-option label="是" value="true" />
-            <el-option label="否" value="false" />
+            <el-option label="是" :value="true" />
+            <el-option label="否" :value="false" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -157,14 +157,14 @@
         </el-form-item>
         <el-form-item label="是否公开" prop="isPublic">
           <el-radio-group v-model="uploadForm.isPublic">
-            <el-radio value="true">是</el-radio>
-            <el-radio value="false">否</el-radio>
+            <el-radio :value="true">是</el-radio>
+            <el-radio :value="false">否</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="是否已使用" prop="isUsed">
           <el-radio-group v-model="uploadForm.isUsed">
-            <el-radio value="true">是</el-radio>
-            <el-radio value="false">否</el-radio>
+            <el-radio :value="true">是</el-radio>
+            <el-radio :value="false">否</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="路径" prop="path">
@@ -261,8 +261,8 @@ const searchForm = reactive({
   fileKey: '',
   storageType: undefined as number | undefined,
   path: '',
-  isPublic: '',
-  isUsed: '',
+  isPublic: '' as boolean | '',
+  isUsed: '' as boolean | '',
 })
 
 const pagination = reactive({
@@ -272,9 +272,9 @@ const pagination = reactive({
 })
 
 const uploadForm = reactive<StorageUploadFormModel>({
-  storageType: '1',
-  isPublic: 'true',
-  isUsed: 'false',
+  storageType: 1,
+  isPublic: true,
+  isUsed: false,
   path: STORAGE_UPLOAD_PATH.MANAGED_FILE,
 })
 
@@ -345,18 +345,13 @@ function toText(...values: unknown[]) {
 }
 
 function toBooleanLike(value: unknown) {
-  if (typeof value === 'boolean') {
-    return value
+  if (value === true || value === 'true' || value === '1' || value === 1) {
+    return true
   }
-  if (typeof value === 'string') {
-    if (value === 'true' || value === '1') {
-      return true
-    }
-    if (value === 'false' || value === '0') {
-      return false
-    }
+  if (value === false || value === 'false' || value === '0' || value === 0) {
+    return false
   }
-  return value as boolean | string | undefined
+  return undefined
 }
 
 function normalizeStorageRecord(record: unknown): ManagedStorageRecord {
@@ -463,9 +458,9 @@ function handleFileChange(event: Event) {
 }
 
 function resetUploadForm() {
-  uploadForm.storageType = '1'
-  uploadForm.isPublic = 'true'
-  uploadForm.isUsed = 'false'
+  uploadForm.storageType = 1
+  uploadForm.isPublic = true
+  uploadForm.isUsed = false
   uploadForm.path = STORAGE_UPLOAD_PATH.MANAGED_FILE
   selectedFile.value = null
   uploadFormRef.value?.clearValidate()
@@ -494,7 +489,7 @@ async function handleUpload() {
   try {
     await uploadStorageFile({
       file: selectedFile.value,
-      storageType: uploadForm.storageType.trim(),
+      storageType: uploadForm.storageType,
       isPublic: uploadForm.isPublic,
       isUsed: uploadForm.isUsed,
       path: uploadForm.path.trim(),
@@ -638,8 +633,8 @@ async function handleBatchDelete() {
   }
 }
 
-function isTrueLike(value: boolean | string | undefined) {
-  return value === true || value === 'true' || value === '1'
+function isTrueLike(value: boolean | undefined) {
+  return value === true
 }
 
 function isStorageInUseError(error: unknown) {
@@ -658,11 +653,11 @@ function formatStorageType(value?: number) {
   return STORAGE_TYPE_OPTIONS.find((item) => item.value === value)?.label || String(value || '-')
 }
 
-function formatBooleanText(value: boolean | string | undefined) {
-  if (value === true || value === 'true' || value === '1') {
+function formatBooleanText(value: boolean | undefined) {
+  if (value === true) {
     return '是'
   }
-  if (value === false || value === 'false' || value === '0') {
+  if (value === false) {
     return '否'
   }
   return '-'

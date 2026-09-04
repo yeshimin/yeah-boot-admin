@@ -5,8 +5,8 @@ export interface ManagedStorageRecord {
   suffix?: string
   storageType?: number
   path?: string
-  isPublic?: boolean | string
-  isUsed?: boolean | string
+  isPublic?: boolean
+  isUsed?: boolean
   bucket?: string
   basePath?: string
   createBy?: string
@@ -17,8 +17,8 @@ export interface ManagedStorageRecord {
 }
 
 export interface StorageUploadFormModel {
-  storageType: string
-  isPublic: string
-  isUsed: string
+  storageType: number
+  isPublic: boolean
+  isUsed: boolean
   path: string
 }

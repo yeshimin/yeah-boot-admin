@@ -215,7 +215,7 @@ const pagination = reactive({
 })
 
 const uploadForm = reactive<FileUploadFormModel>({
-  storageType: '1',
+  storageType: 1,
 })
 
 const uploadRules = reactive<FormRules>({
@@ -376,7 +376,7 @@ function handleFileChange(event: Event) {
 }
 
 function resetUploadForm() {
-  uploadForm.storageType = '1'
+  uploadForm.storageType = 1
   selectedFile.value = null
   uploadFormRef.value?.clearValidate()
 }
@@ -404,7 +404,7 @@ async function handleUpload() {
   try {
     await uploadFile({
       file: selectedFile.value,
-      storageType: uploadForm.storageType.trim(),
+      storageType: uploadForm.storageType,
     })
     dialogVisible.value = false
     ElMessage.success('文件上传成功')

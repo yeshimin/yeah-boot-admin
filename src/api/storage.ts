@@ -4,9 +4,9 @@ import type { PageResponse } from '@/types/api'
 
 export interface UploadStorageRequest {
   file: File
-  storageType?: string
-  isPublic?: string
-  isUsed?: string
+  storageType?: number
+  isPublic?: boolean
+  isUsed?: boolean
   path?: string
 }
 
@@ -19,9 +19,9 @@ export function uploadStorageFile(payload: UploadStorageRequest) {
   const path = payload.path?.trim()
 
   formData.append('file', payload.file)
-  formData.append('storageType', payload.storageType || '1')
-  formData.append('isPublic', payload.isPublic || 'true')
-  formData.append('isUsed', payload.isUsed || 'false')
+  formData.append('storageType', String(payload.storageType ?? 1))
+  formData.append('isPublic', String(payload.isPublic ?? true))
+  formData.append('isUsed', String(payload.isUsed ?? false))
   if (path) {
     formData.append('path', path)
   }

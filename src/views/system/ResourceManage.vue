@@ -530,7 +530,7 @@ const mountLoading = ref(false)
 
 const viewSearchForm = reactive({
   name: '',
-  type: '' as '' | number,
+  type: '' as number | '',
   status: '',
 })
 
@@ -1385,26 +1385,26 @@ function formatMountTreeLabel(data: ResourceTreeNode) {
   return formatDisabledName(`${data.name}${typeSuffix}`, data.status)
 }
 
-function getResourceTypeName(type: number | string) {
-  const typeMap: Record<string, string> = {
-    '1': '菜单',
-    '2': '页面',
-    '3': '按钮',
-    '4': '接口',
-    '5': '分组',
+function getResourceTypeName(type: number) {
+  const typeMap: Record<number, string> = {
+    1: '菜单',
+    2: '页面',
+    3: '按钮',
+    4: '接口',
+    5: '分组',
   }
-  return typeMap[String(type)] || String(type)
+  return typeMap[type] || String(type)
 }
 
-function getResourceTypeTagType(type: number | string) {
-  const typeMap: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
-    '1': 'primary',
-    '2': 'success',
-    '3': 'warning',
-    '4': 'info',
-    '5': 'danger',
+function getResourceTypeTagType(type: number) {
+  const typeMap: Record<number, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
+    1: 'primary',
+    2: 'success',
+    3: 'warning',
+    4: 'info',
+    5: 'danger',
   }
-  return typeMap[String(type)] || 'info'
+  return typeMap[type] || 'info'
 }
 </script>
 

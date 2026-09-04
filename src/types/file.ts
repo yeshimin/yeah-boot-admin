@@ -14,5 +14,5 @@ export interface ManagedFileRecord {
 }
 
 export interface FileUploadFormModel {
-  storageType: string
+  storageType: number
 }

@@ -18,10 +18,10 @@ export function getFileDetail(id: number) {
   })
 }
 
-export function uploadFile(payload: { file: File; storageType: string }) {
+export function uploadFile(payload: { file: File; storageType: number }) {
   const formData = new FormData()
   formData.append('file', payload.file)
-  formData.append('storageType', payload.storageType)
+  formData.append('storageType', String(payload.storageType))
 
   return request<Record<string, unknown>>({
     url: '/basic/file/upload',

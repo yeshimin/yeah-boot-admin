@@ -99,7 +99,7 @@ export interface SysUserEntity {
   avatar?: string | null
   mobile?: string
   email?: string
-  gender?: string
+  gender?: number
   remark?: string
   createTime?: string
 }
@@ -120,7 +120,7 @@ export interface UpdateMineRequest {
   nickname?: string
   mobile?: string
   email?: string
-  gender?: string
+  gender?: number
   avatar?: string | null
   oldPassword?: string
   newPassword?: string
@@ -212,13 +212,13 @@ export interface SysDictTreeNode extends SysDictEntity {
 
 export interface SysLogEntity {
   id: number
-  triggerType?: string
-  category?: string
+  triggerType?: number
+  category?: number
   event?: string
   input?: string
   output?: string
   time?: number
-  success?: string
+  success?: number
   extra?: string
   comment?: string
   createBy?: string
