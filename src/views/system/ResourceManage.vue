@@ -548,6 +548,7 @@ const treeSelectProps = {
 const viewResourceList = ref<ResourceTreeNode[]>([])
 const viewResourceTree = ref<ResourceTreeNode[]>([])
 const apiResourceList = ref<ResourceTreeNode[]>([])
+const apiResourceTree = ref<ResourceTreeNode[]>([])
 const apiGroupTree = ref<SysResGroupTreeNode[]>([])
 
 const availableIcons = [
@@ -758,14 +759,12 @@ function loadViewResources() {
 
 function loadApiResources() {
   apiTableLoading.value = true
-  return getApiResourceTree({
-    name: apiSearchForm.name || undefined,
-    status: apiSearchForm.status || undefined,
-  })
+  return getApiResourceTree()
     .then((response) => {
       const tree = response.data || []
+      apiResourceTree.value = tree
       apiGroupTree.value = extractApiGroupTree(tree)
-      apiResourceList.value = filterApiResourceTree(tree)
+      apiResourceList.value = filterApiResourceTree(apiResourceTree.value)
     })
     .finally(() => {
       apiTableLoading.value = false
@@ -810,7 +809,14 @@ function filterApiResourceTree(nodes: ResourceTreeNode[]): ResourceTreeNode[] {
       ...node,
       children: node.children ? filterApiResourceTree(node.children) : [],
     }))
-    .filter((node) => isApiResourceType(node.type) || (node.children?.length ?? 0) > 0)
+    .filter((node) => {
+      if (isApiGroupRow(node)) {
+        return (node.children?.length ?? 0) > 0
+      }
+      const matchesName = !apiSearchForm.name || node.name.includes(apiSearchForm.name)
+      const matchesStatus = !apiSearchForm.status || node.status === apiSearchForm.status
+      return isApiResourceType(node.type) && matchesName && matchesStatus
+    })
 }
 
 async function handleViewSearch() {
@@ -826,16 +832,16 @@ async function handleViewReset() {
   viewResourceList.value = filterViewResourceTree(viewResourceTree.value)
 }
 
-async function handleApiSearch() {
-  await loadApiResources()
+function handleApiSearch() {
+  apiResourceList.value = filterApiResourceTree(apiResourceTree.value)
 }
 
-async function handleApiReset() {
+function handleApiReset() {
   Object.assign(apiSearchForm, {
     name: '',
     status: '',
   })
-  await loadApiResources()
+  apiResourceList.value = filterApiResourceTree(apiResourceTree.value)
 }
 
 function findResourceNodeById(nodes: ResourceTreeNode[], id: number): ResourceTreeNode | null {
