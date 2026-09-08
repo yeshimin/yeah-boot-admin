@@ -8,7 +8,7 @@ export function useAuthContextRefresh() {
 
   return async function refreshAuthContextSilently() {
     try {
-      await authStore.refreshProfile()
+      await authStore.refreshAuthContext()
       if (!authStore.canAccessPath(route.path)) {
         await router.replace(authStore.firstAccessiblePath)
       }

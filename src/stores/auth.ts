@@ -216,6 +216,16 @@ export const useAuthStore = defineStore('auth', () => {
       return
     }
 
+    const response = await getMine()
+    mine.value = response.data
+    permissions.value = response.data.permissions || []
+  }
+
+  async function refreshAuthContext() {
+    if (!token.value) {
+      return
+    }
+
     await fetchAuthContext()
   }
 
@@ -282,6 +292,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     bootstrap,
     refreshProfile,
+    refreshAuthContext,
     canAccessPath,
     hasPermission,
     hasAnyPermission,

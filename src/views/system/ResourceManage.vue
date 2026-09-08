@@ -491,7 +491,6 @@ import {
   deleteResources,
   getApiResourceTree,
   getResourceDetail,
-  getResourceGroupTree,
   getViewResourceTree,
   queryMountedApis,
   saveMountedApis,
@@ -723,7 +722,7 @@ onMounted(() => {
 
 async function handleTabChange() {
   if (activeTab.value === 'api') {
-    await Promise.all([loadApiGroups(), loadApiResources()])
+    await loadApiResources()
     return
   }
   await loadViewResources()
@@ -757,12 +756,6 @@ function loadViewResources() {
     })
 }
 
-function loadApiGroups() {
-  return getResourceGroupTree().then((response) => {
-    apiGroupTree.value = response.data || []
-  })
-}
-
 function loadApiResources() {
   apiTableLoading.value = true
   return getApiResourceTree({
@@ -770,11 +763,26 @@ function loadApiResources() {
     status: apiSearchForm.status || undefined,
   })
     .then((response) => {
-      apiResourceList.value = filterApiResourceTree(response.data || [])
+      const tree = response.data || []
+      apiGroupTree.value = extractApiGroupTree(tree)
+      apiResourceList.value = filterApiResourceTree(tree)
     })
     .finally(() => {
       apiTableLoading.value = false
     })
+}
+
+function extractApiGroupTree(nodes: ResourceTreeNode[]): SysResGroupTreeNode[] {
+  return nodes
+    .filter((node) => isApiGroupRow(node) && !isUngroupedApiGroup(node))
+    .map((node) => ({
+      id: node.id,
+      parentId: node.parentId,
+      name: node.name,
+      sort: node.sort,
+      remark: node.remark,
+      children: extractApiGroupTree(node.children || []),
+    }))
 }
 
 function filterViewResourceTree(nodes: ResourceTreeNode[]): ResourceTreeNode[] {
@@ -1062,7 +1070,7 @@ async function handleDeleteApiGroup(row: ResourceTreeNode) {
     })
     await deleteResourceGroups([row.id], { suppressErrorMessage: true })
     ElMessage.success('删除成功')
-    await Promise.all([loadApiGroups(), loadApiResources()])
+    await loadApiResources()
   } catch (error) {
     if (isUserCancel(error)) {
       return
@@ -1186,7 +1194,7 @@ async function handleSubmitGroup() {
       ElMessage.success('新增接口分组成功')
     }
     groupDialogVisible.value = false
-    await Promise.all([loadApiGroups(), loadApiResources()])
+    await loadApiResources()
   } catch (error) {
     showSubmitError(error, fallbackMessage)
   } finally {
@@ -1251,7 +1259,7 @@ async function handleSubmitMount() {
 
 async function refreshAfterResourceChanged() {
   if (activeTab.value === 'api') {
-    await Promise.all([loadApiGroups(), loadApiResources()])
+    await loadApiResources()
     return
   }
   await loadViewResources()

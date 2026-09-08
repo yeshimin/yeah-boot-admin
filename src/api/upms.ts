@@ -14,7 +14,6 @@ import type {
   SysPostEntity,
   SysResEntity,
   SysResGroupEntity,
-  SysResGroupTreeNode,
   SysResMountEntity,
   SysResMountItem,
   SysRoleEntity,
@@ -221,13 +220,6 @@ export function deleteResources(ids: number[], options?: { suppressErrorMessage?
     method: 'post',
     data: { ids },
     suppressErrorMessage: options?.suppressErrorMessage,
-  })
-}
-
-export function getResourceGroupTree() {
-  return request<SysResGroupTreeNode[]>({
-    url: '/admin/sysResGroup/tree',
-    method: 'get',
   })
 }
 

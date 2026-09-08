@@ -270,7 +270,12 @@ async function loadOrgTree() {
       name: searchForm.name || undefined,
       status: searchForm.status || undefined,
     })
-    orgList.value = response.data
+    const tree = response.data || []
+    orgList.value = tree
+    // 无筛选条件时，表格树和上级组织树的数据相同，直接复用本次响应
+    if (!hasSearchConditions()) {
+      parentTree.value = tree
+    }
   } finally {
     tableLoading.value = false
   }
@@ -279,6 +284,18 @@ async function loadOrgTree() {
 async function loadParentTree() {
   const response = await getOrgTree()
   parentTree.value = response.data || []
+}
+
+function hasSearchConditions() {
+  return Boolean(searchForm.name || searchForm.status)
+}
+
+async function reloadOrgData() {
+  if (!hasSearchConditions()) {
+    await loadOrgTree()
+    return
+  }
+  await Promise.all([loadOrgTree(), loadParentTree()])
 }
 
 function resetForm() {
@@ -371,7 +388,7 @@ async function handleDelete(row: SysOrgTreeNode) {
     })
     await deleteOrgs([row.id], { suppressErrorMessage: true })
     ElMessage.success('删除组织成功')
-    await Promise.all([loadOrgTree(), loadParentTree()])
+    await reloadOrgData()
   } catch (error) {
     if (isUserCancel(error)) {
       return
@@ -405,6 +422,7 @@ async function handleStatusChange(row: SysOrgTreeNode) {
       status: nextStatus,
     }, { suppressErrorMessage: true })
     ElMessage.success(`组织${nextStatus === '1' ? '启用' : '禁用'}成功`)
+    await reloadOrgData()
   } catch (error) {
     row.status = previousStatus
     if (isUserCancel(error)) {
@@ -448,7 +466,7 @@ async function handleSubmit() {
     }
 
     dialogVisible.value = false
-    await Promise.all([loadOrgTree(), loadParentTree()])
+    await reloadOrgData()
   } catch (error) {
     showSubmitError(error, fallbackMessage)
   } finally {
@@ -491,7 +509,7 @@ watch(() => form.parentId, (parentId) => {
   ElMessage.warning('当前上级组织已禁用，不能变更')
 })
 
-void Promise.all([loadOrgTree(), loadParentTree()])
+void reloadOrgData()
 </script>
 
 <style scoped>
