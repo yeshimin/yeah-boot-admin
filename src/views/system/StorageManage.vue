@@ -1,7 +1,13 @@
 <template>
   <div class="storage-manage-container">
     <div class="search-bar">
-      <el-form :inline="true" :model="searchForm" class="search-form">
+      <el-form
+        :inline="true"
+        :model="searchForm"
+        class="search-form"
+        @keydown.enter.capture.prevent.stop="handleSearch"
+        @submit.prevent="handleSearch"
+      >
         <el-form-item label="原始文件名">
           <el-input v-model="searchForm.originalName" placeholder="请输入原始文件名" clearable />
         </el-form-item>
@@ -34,7 +40,7 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button type="primary" native-type="submit">搜索</el-button>
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>

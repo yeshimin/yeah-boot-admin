@@ -8,7 +8,13 @@
     />
 
     <div class="search-bar">
-      <el-form :inline="true" :model="searchForm" class="search-form">
+      <el-form
+        :inline="true"
+        :model="searchForm"
+        class="search-form"
+        @keydown.enter.capture.prevent.stop="handleSearch"
+        @submit.prevent="handleSearch"
+      >
         <el-form-item label="参数分组">
           <el-input v-model="searchForm.groupCode" placeholder="请输入参数分组" clearable />
         </el-form-item>
@@ -25,7 +31,7 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button type="primary" native-type="submit">搜索</el-button>
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>

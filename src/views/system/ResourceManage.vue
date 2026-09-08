@@ -3,7 +3,13 @@
     <el-tabs v-model="activeTab" class="resource-tabs" @tab-change="handleTabChange">
       <el-tab-pane label="视图资源" name="view">
         <div class="search-bar">
-          <el-form :inline="true" :model="viewSearchForm" class="search-form">
+          <el-form
+            :inline="true"
+            :model="viewSearchForm"
+            class="search-form"
+            @keydown.enter.capture.prevent.stop="handleViewSearch"
+            @submit.prevent="handleViewSearch"
+          >
             <el-form-item label="资源名称">
               <el-input v-model="viewSearchForm.name" placeholder="请输入资源名称" clearable></el-input>
             </el-form-item>
@@ -22,7 +28,7 @@
               </el-select>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="handleViewSearch">搜索</el-button>
+              <el-button type="primary" native-type="submit">搜索</el-button>
               <el-button @click="handleViewReset">重置</el-button>
             </el-form-item>
           </el-form>
@@ -109,7 +115,13 @@
 
       <el-tab-pane label="接口资源" name="api">
         <div class="search-bar">
-          <el-form :inline="true" :model="apiSearchForm" class="search-form">
+          <el-form
+            :inline="true"
+            :model="apiSearchForm"
+            class="search-form"
+            @keydown.enter.capture.prevent.stop="handleApiSearch"
+            @submit.prevent="handleApiSearch"
+          >
             <el-form-item label="接口名称">
               <el-input v-model="apiSearchForm.name" placeholder="请输入接口名称" clearable></el-input>
             </el-form-item>
@@ -120,7 +132,7 @@
               </el-select>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="handleApiSearch">搜索</el-button>
+              <el-button type="primary" native-type="submit">搜索</el-button>
               <el-button @click="handleApiReset">重置</el-button>
             </el-form-item>
           </el-form>
