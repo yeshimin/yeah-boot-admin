@@ -379,7 +379,7 @@ function resetForm() {
     sort: 1,
     remark: '',
   }
-  formRef.value?.resetFields()
+  formRef.value?.clearValidate()
 }
 
 function handleNodeClick(node: SysDictTreeNode) {

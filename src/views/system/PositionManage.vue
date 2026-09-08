@@ -502,9 +502,7 @@ const resetPositionForm = () => {
     remark: '',
     createTime: ''
   })
-  if (positionFormRef.value) {
-    positionFormRef.value.resetFields()
-  }
+  positionFormRef.value?.clearValidate()
 }
 
 // 关闭对话框
