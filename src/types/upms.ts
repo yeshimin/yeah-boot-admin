@@ -90,6 +90,20 @@ export interface SysPostEntity {
   createTime?: string
 }
 
+export interface SysConfigEntity {
+  id: number
+  groupCode: string
+  configKey: string
+  configName: string
+  configValue: string
+  valueType: number
+  status: string
+  sort: number
+  remark?: string
+  createTime?: string
+  updateTime?: string
+}
+
 export interface SysUserEntity {
   id: number
   username: string

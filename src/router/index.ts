@@ -37,6 +37,7 @@ const OrgManage = () => import('../views/system/OrgManage.vue')
 const PositionManage = () => import('../views/system/PositionManage.vue')
 const DictManage = () => import('../views/system/DictManage.vue')
 const LogManage = () => import('../views/system/LogManage.vue')
+const ConfigManage = () => import('../views/system/ConfigManage.vue')
 const AreaManage = () => import('../views/system/AreaManage.vue')
 const FileManage = () => import('../views/system/FileManage.vue')
 const StorageManage = () => import('../views/system/StorageManage.vue')
@@ -53,6 +54,7 @@ const BACKEND_COMPONENT_MAP: Record<string, () => Promise<unknown>> = {
   'system/post/index': PositionManage,
   'system/dict/index': DictManage,
   'system/log/index': LogManage,
+  'system/config/index': ConfigManage,
   'system/area/index': AreaManage,
   'system/file/index': FileManage,
   'system/storage/index': StorageManage,
@@ -151,6 +153,12 @@ const asyncRoutes = [
         name: 'system-log',
         component: LogManage,
         meta: { title: '系统日志' },
+      },
+      {
+        path: '/system/config',
+        name: 'system-config',
+        component: ConfigManage,
+        meta: { title: '系统参数' },
       },
     ],
   },

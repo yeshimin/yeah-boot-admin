@@ -6,6 +6,7 @@ import type {
   RoleUpdateRequest,
   ResourceTreeNode,
   SysDictEntity,
+  SysConfigEntity,
   SysDictTreeNode,
   SysLogEntity,
   SysOrgEntity,
@@ -317,6 +318,63 @@ export function deletePosts(ids: number[], options?: { suppressErrorMessage?: bo
     url: '/admin/sysPost/delete',
     method: 'post',
     data: { ids },
+    suppressErrorMessage: options?.suppressErrorMessage,
+  })
+}
+
+export function querySysConfigs(params: Record<string, unknown>) {
+  return request<PageResponse<SysConfigEntity>>({
+    url: '/admin/sysConfig/crud/query',
+    method: 'get',
+    params,
+  })
+}
+
+export function getSysConfigDetail(id: number) {
+  return request<SysConfigEntity>({
+    url: '/admin/sysConfig/crud/detail',
+    method: 'get',
+    params: { id },
+  })
+}
+
+export function createSysConfig(
+  data: Record<string, unknown>,
+  options?: { suppressErrorMessage?: boolean },
+) {
+  return request<SysConfigEntity>({
+    url: '/admin/sysConfig/create',
+    method: 'post',
+    data,
+    suppressErrorMessage: options?.suppressErrorMessage,
+  })
+}
+
+export function updateSysConfig(
+  data: Record<string, unknown>,
+  options?: { suppressErrorMessage?: boolean },
+) {
+  return request<SysConfigEntity>({
+    url: '/admin/sysConfig/update',
+    method: 'post',
+    data,
+    suppressErrorMessage: options?.suppressErrorMessage,
+  })
+}
+
+export function deleteSysConfigs(ids: number[], options?: { suppressErrorMessage?: boolean }) {
+  return request<void>({
+    url: '/admin/sysConfig/delete',
+    method: 'post',
+    data: { ids },
+    suppressErrorMessage: options?.suppressErrorMessage,
+  })
+}
+
+export function refreshSysConfigCache(options?: { suppressErrorMessage?: boolean }) {
+  return request<void>({
+    url: '/admin/sysConfig/refreshCache',
+    method: 'post',
     suppressErrorMessage: options?.suppressErrorMessage,
   })
 }
