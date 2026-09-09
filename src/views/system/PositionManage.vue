@@ -178,9 +178,9 @@ import { getRequestErrorMessage as getDeleteErrorMessage, isUserCancel } from '@
 import { buildConditions } from '@/utils/query'
 
 const authStore = useAuthStore()
-const canCreatePosition = computed(() => authStore.hasPermission('admin:sysPost:create'))
-const canUpdatePosition = computed(() => authStore.hasPermission('admin:sysPost:update'))
-const canDeletePosition = computed(() => authStore.hasPermission('admin:sysPost:delete'))
+const canCreatePosition = computed(() => authStore.hasPermission('view:admin:sysPost:create'))
+const canUpdatePosition = computed(() => authStore.hasPermission('view:admin:sysPost:update'))
+const canDeletePosition = computed(() => authStore.hasPermission('view:admin:sysPost:delete'))
 
 // 表格加载状态
 const tableLoading = ref(false)

@@ -406,10 +406,10 @@ interface UserListItem extends SysUserVo {
 }
 
 const authStore = useAuthStore()
-const canCreateUser = computed(() => authStore.hasPermission('admin:sysUser:create'))
-const canViewUserDetail = computed(() => authStore.hasPermission('admin:sysUser:detail'))
-const canUpdateUser = computed(() => authStore.hasPermission('admin:sysUser:update'))
-const canDeleteUser = computed(() => authStore.hasPermission('admin:sysUser:delete'))
+const canCreateUser = computed(() => authStore.hasPermission('view:admin:sysUser:create'))
+const canViewUserDetail = computed(() => authStore.hasPermission('view:admin:sysUser:detail'))
+const canUpdateUser = computed(() => authStore.hasPermission('view:admin:sysUser:update'))
+const canDeleteUser = computed(() => authStore.hasPermission('view:admin:sysUser:delete'))
 const canImportUsers = computed(() => authStore.hasPermission('view:admin:sysUser:import'))
 const canExportUsers = computed(() => authStore.hasPermission('view:admin:sysUser:export'))
 const canResetUserPassword = computed(() => authStore.hasPermission('view:admin:sysUser:resetPassword'))

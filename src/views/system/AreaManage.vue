@@ -230,9 +230,9 @@ const AREA_CHILD_QUERY_PAGE_SIZE = 1000
 const DEFAULT_EXPANDED_AREA_LEVEL: AreaNodeLevel = 1
 const LEFT_TREE_VISIBLE_LEVEL: AreaNodeLevel = 2
 const AREA_MODULE_BY_LEVEL: Record<AreaNodeLevel, string> = {
-  1: 'admin:areaProvince',
-  2: 'admin:areaCity',
-  3: 'admin:areaDistrict',
+  1: 'view:admin:areaProvince',
+  2: 'view:admin:areaCity',
+  3: 'view:admin:areaDistrict',
 }
 
 const authStore = useAuthStore()
@@ -478,9 +478,6 @@ const formTypeLabel = computed(() => {
   return editingLevel.value === 1 ? '省份' : editingLevel.value === 2 ? '城市' : '区县'
 })
 const childEmptyText = computed(() => {
-  if (!canViewAreaTree.value) {
-    return '暂无地区树权限'
-  }
   if (!currentNode.value) {
     return '请先选择左侧地区节点'
   }
@@ -510,8 +507,6 @@ const canSubmitAreaForm = computed(() => {
     ? canCreateArea(submitLevel)
     : canUpdateArea(submitLevel)
 })
-const canViewAreaTree = computed(() => authStore.hasPermission('admin:area:tree'))
-
 function warnNoPermission() {
   ElMessage.warning('暂无操作权限')
 }
@@ -618,15 +613,6 @@ function resolveFormSubmitLevel(): AreaNodeLevel {
 async function loadAreaTree() {
   treeLoading.value = true
   try {
-    if (!canViewAreaTree.value) {
-      areaTree.value = []
-      leftAreaTree.value = []
-      currentNode.value = null
-      currentNodeDetail.value = null
-      tableRows.value = []
-      return
-    }
-
     const response = await getAreaTree(3)
     areaTree.value = normalizeAreaTree(response.data || [])
     leftAreaTree.value = buildLeftAreaTree(areaTree.value)

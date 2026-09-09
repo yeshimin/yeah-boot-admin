@@ -468,7 +468,7 @@
         <span class="dialog-footer">
           <el-button :disabled="mountSubmitting" @click="mountDialogVisible = false">取消</el-button>
           <el-button
-            v-if="canSaveMountResource"
+            v-if="canMountResource"
             type="primary"
             :loading="mountSubmitting"
             @click="handleSubmitMount"
@@ -524,15 +524,13 @@ interface TreeSelectOption {
 
 const authStore = useAuthStore()
 const refreshAuthContextSilently = useAuthContextRefresh()
-const canCreateResource = computed(() => authStore.hasPermission('admin:sysRes:create'))
-const canUpdateResource = computed(() => authStore.hasPermission('admin:sysRes:update'))
-const canDeleteResource = computed(() => authStore.hasPermission('admin:sysRes:delete'))
-const canCreateResourceGroup = computed(() => authStore.hasPermission('admin:sysResGroup:create'))
-const canUpdateResourceGroup = computed(() => authStore.hasPermission('admin:sysResGroup:update'))
-const canDeleteResourceGroup = computed(() => authStore.hasPermission('admin:sysResGroup:delete'))
-const canQueryMountResource = computed(() => authStore.hasPermission('admin:sysResMount:query'))
-const canSaveMountResource = computed(() => authStore.hasPermission('admin:sysResMount:save'))
-const canMountResource = computed(() => canQueryMountResource.value && canSaveMountResource.value)
+const canCreateResource = computed(() => authStore.hasPermission('view:admin:sysRes:create'))
+const canUpdateResource = computed(() => authStore.hasPermission('view:admin:sysRes:update'))
+const canDeleteResource = computed(() => authStore.hasPermission('view:admin:sysRes:delete'))
+const canCreateResourceGroup = computed(() => authStore.hasPermission('view:admin:sysResGroup:create'))
+const canUpdateResourceGroup = computed(() => authStore.hasPermission('view:admin:sysResGroup:update'))
+const canDeleteResourceGroup = computed(() => authStore.hasPermission('view:admin:sysResGroup:delete'))
+const canMountResource = computed(() => authStore.hasPermission('view:admin:sysResMount:save'))
 
 const activeTab = ref<ResourceTab>('view')
 const viewTableLoading = ref(false)
@@ -1246,7 +1244,7 @@ async function handleSubmitMount() {
   if (mountSubmitting.value || !mountTargetResource.value || !mountTreeRef.value) {
     return
   }
-  if (!canSaveMountResource.value) {
+  if (!canMountResource.value) {
     warnNoPermission()
     return
   }

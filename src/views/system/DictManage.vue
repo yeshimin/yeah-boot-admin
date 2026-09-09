@@ -243,9 +243,9 @@ type DictParentOption = {
 }
 
 const authStore = useAuthStore()
-const canCreateDict = computed(() => authStore.hasPermission('admin:sysDict:create'))
-const canUpdateDict = computed(() => authStore.hasPermission('admin:sysDict:update'))
-const canDeleteDict = computed(() => authStore.hasPermission('admin:sysDict:delete'))
+const canCreateDict = computed(() => authStore.hasPermission('view:admin:sysDict:create'))
+const canUpdateDict = computed(() => authStore.hasPermission('view:admin:sysDict:update'))
+const canDeleteDict = computed(() => authStore.hasPermission('view:admin:sysDict:delete'))
 
 const treeRef = ref()
 const formRef = ref<FormInstance>()

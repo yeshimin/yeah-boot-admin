@@ -244,13 +244,10 @@ function formatResourceTreeLabel(data: ResourceTreeNode) {
 
 const authStore = useAuthStore()
 const refreshAuthContextSilently = useAuthContextRefresh()
-const canCreateRole = computed(() => authStore.hasPermission('admin:sysRole:create'))
-const canUpdateRole = computed(() => authStore.hasPermission('admin:sysRole:update'))
-const canDeleteRole = computed(() => authStore.hasPermission('admin:sysRole:delete'))
-const canAssignRoleResources = computed(() => (
-  authStore.hasPermission('admin:sysRole:queryResourceTree')
-  && authStore.hasPermission('admin:sysRole:setResources')
-))
+const canCreateRole = computed(() => authStore.hasPermission('view:admin:sysRole:create'))
+const canUpdateRole = computed(() => authStore.hasPermission('view:admin:sysRole:update'))
+const canDeleteRole = computed(() => authStore.hasPermission('view:admin:sysRole:delete'))
+const canAssignRoleResources = computed(() => authStore.hasPermission('view:admin:sysRole:setResources'))
 
 // 表格加载状态
 const tableLoading = ref(false)

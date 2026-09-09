@@ -230,10 +230,10 @@ const uploadRules = reactive<FormRules>({
   ],
 })
 
-const canUploadFile = computed(() => authStore.hasPermission('basic:file:upload'))
-const canViewFileDetail = computed(() => authStore.hasPermission('basic:file:crud:detail'))
-const canDownloadFile = computed(() => authStore.hasPermission('basic:file:download'))
-const canDeleteFile = computed(() => authStore.hasPermission('basic:file:delete'))
+const canUploadFile = computed(() => authStore.hasPermission('view:basic:file:upload'))
+const canViewFileDetail = computed(() => authStore.hasPermission('view:basic:file:crud:detail'))
+const canDownloadFile = computed(() => authStore.hasPermission('view:basic:file:download'))
+const canDeleteFile = computed(() => authStore.hasPermission('view:basic:file:delete'))
 const selectedFileKeys = computed(() => (
   selectedFiles.value
     .map((item) => item.fileKey)

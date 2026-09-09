@@ -291,10 +291,10 @@ const uploadRules = reactive<FormRules>({
   path: [{ required: true, message: '请输入路径', trigger: 'blur' }],
 })
 
-const canUploadStorage = computed(() => authStore.hasPermission('basic:storage:upload'))
-const canViewStorageDetail = computed(() => authStore.hasPermission('basic:storage:crud:detail'))
-const canDownloadStorage = computed(() => authStore.hasPermission('basic:storage:download'))
-const canDeleteStorage = computed(() => authStore.hasPermission('basic:storage:delete'))
+const canUploadStorage = computed(() => authStore.hasPermission('view:basic:storage:upload'))
+const canViewStorageDetail = computed(() => authStore.hasPermission('view:basic:storage:crud:detail'))
+const canDownloadStorage = computed(() => authStore.hasPermission('view:basic:storage:download'))
+const canDeleteStorage = computed(() => authStore.hasPermission('view:basic:storage:delete'))
 const selectedStorageFileKeys = computed(() => (
   selectedStorageFiles.value
     .map((item) => item.fileKey)

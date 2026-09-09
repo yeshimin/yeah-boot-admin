@@ -171,9 +171,9 @@ interface ParentOrgOption {
 }
 
 const authStore = useAuthStore()
-const canCreateOrg = computed(() => authStore.hasPermission('admin:sysOrg:create'))
-const canUpdateOrg = computed(() => authStore.hasPermission('admin:sysOrg:update'))
-const canDeleteOrg = computed(() => authStore.hasPermission('admin:sysOrg:delete'))
+const canCreateOrg = computed(() => authStore.hasPermission('view:admin:sysOrg:create'))
+const canUpdateOrg = computed(() => authStore.hasPermission('view:admin:sysOrg:update'))
+const canDeleteOrg = computed(() => authStore.hasPermission('view:admin:sysOrg:delete'))
 const formRef = ref<FormInstance>()
 const tableLoading = ref(false)
 const orgList = ref<SysOrgTreeNode[]>([])
