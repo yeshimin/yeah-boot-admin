@@ -107,7 +107,7 @@ const loginRules = reactive<FormRules>({
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
+    { min: 6, max: 32, message: '密码长度在 6 到 32 个字符', trigger: 'blur' }
   ],
   code: [
     {
