@@ -247,16 +247,16 @@
           <el-input v-model="userForm.username" placeholder="请输入用户名"></el-input>
         </el-form-item>
         <el-form-item label="昵称" prop="nickname">
-          <el-input v-model="userForm.nickname" placeholder="请输入昵称"></el-input>
+          <el-input v-model="userForm.nickname" placeholder="请输入昵称（选填）" clearable></el-input>
         </el-form-item>
         <el-form-item label="密码" prop="password" v-if="!userForm.id">
           <el-input v-model="userForm.password" type="password" placeholder="请输入密码"></el-input>
         </el-form-item>
         <el-form-item label="手机号" prop="mobile">
-          <el-input v-model="userForm.mobile" placeholder="请输入手机号"></el-input>
+          <el-input v-model="userForm.mobile" placeholder="请输入手机号（选填）" clearable></el-input>
         </el-form-item>
         <el-form-item label="邮箱" prop="email">
-          <el-input v-model="userForm.email" placeholder="请输入邮箱"></el-input>
+          <el-input v-model="userForm.email" placeholder="请输入邮箱（选填）" clearable></el-input>
         </el-form-item>
         <el-form-item label="性别" prop="gender">
           <el-select v-model="userForm.gender" placeholder="请选择性别" clearable>
@@ -266,7 +266,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="组织" prop="orgIds">
-          <el-select v-model="userForm.orgIds" placeholder="请选择组织" multiple collapse-tags>
+          <el-select v-model="userForm.orgIds" placeholder="请选择组织（选填）" multiple collapse-tags clearable>
             <el-option
               v-for="org in orgOptions"
               :key="org.id"
@@ -277,7 +277,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="岗位" prop="postIds">
-          <el-select v-model="userForm.postIds" placeholder="请选择岗位" multiple collapse-tags>
+          <el-select v-model="userForm.postIds" placeholder="请选择岗位（选填）" multiple collapse-tags clearable>
             <el-option
               v-for="post in postOptions"
               :key="post.id"
@@ -288,7 +288,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="角色" prop="roleIds">
-          <el-select v-model="userForm.roleIds" placeholder="请选择角色" multiple collapse-tags>
+          <el-select v-model="userForm.roleIds" placeholder="请选择角色（选填）" multiple collapse-tags clearable>
             <el-option
               v-for="role in roleOptions"
               :key="role.id"
@@ -297,6 +297,7 @@
               :disabled="role.disabled"
             ></el-option>
           </el-select>
+          <el-text type="info" size="small">未分配角色的用户登录后将无后台访问权限。</el-text>
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-switch v-model="userForm.status" active-value="1" inactive-value="2"></el-switch>
@@ -529,29 +530,20 @@ function saveDownload(blob: Blob, fileName: string) {
 const userRules = reactive<FormRules>({
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 32, message: '用户名长度在 3 到 32 个字符', trigger: 'blur' }
+    { min: 2, max: 32, message: '用户名长度在 2 到 32 个字符', trigger: 'blur' }
   ],
   nickname: [
-    { required: true, message: '请输入昵称', trigger: 'blur' },
-    { min: 2, max: 32, message: '昵称长度在 2 到 32 个字符', trigger: 'blur' }
+    { max: 32, message: '昵称不能超过 32 个字符', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
   ],
   mobile: [
-    { required: true, message: '请输入手机号', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }
+    { pattern: /^1\d{12}$/, message: '请输入以 1 开头的 13 位手机号', trigger: 'blur' }
   ],
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
-  ],
-  orgIds: [
-    { required: true, message: '请选择组织', trigger: 'change' }
-  ],
-  postIds: [
-    { required: true, message: '请选择岗位', trigger: 'change' }
   ]
 })
 
@@ -598,8 +590,8 @@ const buildUserPayload = () => ({
   username: userForm.username,
   password: userForm.password || undefined,
   nickname: userForm.nickname,
-  mobile: userForm.mobile,
-  email: userForm.email,
+  mobile: userForm.mobile.trim() || null,
+  email: userForm.email.trim() || null,
   gender: userForm.gender === '' ? undefined : userForm.gender,
   orgIds: mergeSelectedIds(userForm.orgIds, lockedDisabledRelationIds.orgIds),
   postIds: mergeSelectedIds(userForm.postIds, lockedDisabledRelationIds.postIds),
