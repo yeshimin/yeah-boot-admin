@@ -79,6 +79,15 @@
             {{ getValueTypeLabel(scope.row.valueType) }}
           </template>
         </el-table-column>
+        <el-table-column prop="publicAccess" label="公开访问" min-width="90">
+          <template #default="scope">
+            <el-switch
+              v-model="scope.row.publicAccess"
+              :disabled="!canUpdateConfig"
+              @change="handlePublicAccessChange(scope.row)"
+            />
+          </template>
+        </el-table-column>
         <el-table-column prop="sort" label="排序" min-width="80" />
         <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
         <el-table-column prop="status" label="状态" min-width="80">
@@ -172,6 +181,10 @@
         <el-form-item label="状态" prop="status">
           <el-switch v-model="configForm.status" active-value="1" inactive-value="2" />
         </el-form-item>
+        <el-form-item label="公开访问" prop="publicAccess">
+          <el-switch v-model="configForm.publicAccess" />
+          <span class="public-access-tip">仅启用且公开的参数可由匿名接口返回。</span>
+        </el-form-item>
         <el-form-item label="备注" prop="remark">
           <el-input
             v-model="configForm.remark"
@@ -262,6 +275,7 @@ const configForm = reactive({
   configValue: '',
   valueType: CONFIG_VALUE_TYPE.STRING as number,
   status: '1',
+  publicAccess: false,
   sort: 1,
   remark: '',
 })
@@ -377,6 +391,7 @@ async function handleEditConfig(row: SysConfigEntity) {
     configValue: response.data.configValue,
     valueType: response.data.valueType,
     status: response.data.status,
+    publicAccess: Boolean(response.data.publicAccess),
     sort: response.data.sort,
     remark: response.data.remark || '',
   })
@@ -403,6 +418,7 @@ async function handleSubmitConfig() {
       configValue: configForm.configValue,
       valueType: configForm.valueType,
       status: configForm.status,
+      publicAccess: configForm.publicAccess,
       sort: configForm.sort,
       remark: configForm.remark,
     }
@@ -437,6 +453,7 @@ async function handleStatusChange(row: SysConfigEntity) {
         configValue: row.configValue,
         valueType: row.valueType,
         status: row.status,
+        publicAccess: row.publicAccess,
         sort: row.sort,
         remark: row.remark || '',
       },
@@ -446,6 +463,30 @@ async function handleStatusChange(row: SysConfigEntity) {
   } catch (error) {
     row.status = previousStatus
     ElMessage.error(getRequestErrorMessage(error) || '参数状态更新失败')
+  }
+}
+
+async function handlePublicAccessChange(row: SysConfigEntity) {
+  const nextPublicAccess = row.publicAccess
+  try {
+    await updateSysConfig(
+      {
+        id: row.id,
+        groupCode: row.groupCode,
+        configName: row.configName,
+        configValue: row.configValue,
+        valueType: row.valueType,
+        status: row.status,
+        publicAccess: row.publicAccess,
+        sort: row.sort,
+        remark: row.remark || '',
+      },
+      { suppressErrorMessage: true },
+    )
+    ElMessage.success(`参数已${nextPublicAccess ? '允许' : '禁止'}公开访问`)
+  } catch (error) {
+    row.publicAccess = !nextPublicAccess
+    ElMessage.error(getRequestErrorMessage(error) || '公开访问状态更新失败')
   }
 }
 
@@ -506,6 +547,7 @@ function resetConfigForm() {
     configValue: '',
     valueType: CONFIG_VALUE_TYPE.STRING,
     status: '1',
+    publicAccess: false,
     sort: 1,
     remark: '',
   })
@@ -534,6 +576,12 @@ function handleDialogClosed() {
 
 .config-tip {
   margin-bottom: 16px;
+}
+
+.public-access-tip {
+  margin-left: 12px;
+  color: #909399;
+  font-size: 12px;
 }
 
 .search-form {

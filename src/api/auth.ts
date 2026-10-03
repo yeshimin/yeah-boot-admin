@@ -1,5 +1,5 @@
 import { request } from '@/utils/request'
-import type { CaptchaVo, LoginRequest, LoginVo } from '@/types/upms'
+import type { AdminRegisterRequest, CaptchaVo, LoginRequest, LoginVo } from '@/types/upms'
 
 export function getCaptcha() {
   return request<CaptchaVo>({
@@ -12,6 +12,23 @@ export function getCaptcha() {
 export function login(payload: LoginRequest) {
   return request<LoginVo>({
     url: '/admin/auth/login',
+    method: 'post',
+    data: payload,
+    skipAuth: true,
+  })
+}
+
+export function getRegisterCaptcha() {
+  return request<CaptchaVo>({
+    url: '/admin/auth/registerCaptcha',
+    method: 'get',
+    skipAuth: true,
+  })
+}
+
+export function register(payload: AdminRegisterRequest) {
+  return request<void>({
+    url: '/admin/auth/register',
     method: 'post',
     data: payload,
     skipAuth: true,

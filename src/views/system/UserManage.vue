@@ -540,7 +540,7 @@ const userRules = reactive<FormRules>({
     { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
   ],
   mobile: [
-    { pattern: /^1\d{12}$/, message: '请输入以 1 开头的 13 位手机号', trigger: 'blur' }
+    { pattern: /^(?:0|86|\+86)?1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }
   ],
   email: [
     { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }

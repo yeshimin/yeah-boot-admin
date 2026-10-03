@@ -23,6 +23,18 @@ export interface CaptchaVo {
   enabled?: boolean
 }
 
+export interface NameValueVo {
+  name: string
+  value: string
+}
+
+export interface AdminRegisterRequest {
+  username: string
+  password: string
+  key: string
+  code: string
+}
+
 export interface SysRoleEntity {
   id: number
   code?: string
@@ -98,6 +110,7 @@ export interface SysConfigEntity {
   configValue: string
   valueType: number
   status: string
+  publicAccess: boolean
   sort: number
   remark?: string
   createTime?: string

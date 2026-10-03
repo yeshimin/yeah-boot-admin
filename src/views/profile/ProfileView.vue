@@ -92,7 +92,7 @@
               </div>
             </el-form-item>
             <el-form-item label="昵称" prop="nickname">
-              <el-input v-model="profileForm.nickname" placeholder="请输入昵称" clearable />
+              <el-input v-model="profileForm.nickname" placeholder="请输入昵称（选填）" clearable />
             </el-form-item>
             <el-form-item label="手机号" prop="mobile">
               <el-input v-model="profileForm.mobile" placeholder="请输入手机号" clearable />
@@ -270,8 +270,7 @@ const statusTagType = computed(() => (user.value?.status === '2' ? 'danger' : 's
 
 const profileRules = reactive<FormRules>({
   nickname: [
-    { required: true, message: '请输入昵称', trigger: 'blur' },
-    { min: 2, max: 32, message: '昵称长度在 2 到 32 个字符', trigger: 'blur' },
+    { max: 32, message: '昵称不能超过 32 个字符', trigger: 'blur' },
   ],
   mobile: [
     {
@@ -280,7 +279,7 @@ const profileRules = reactive<FormRules>({
           callback()
           return
         }
-        if (!/^1\d{10}$/.test(String(value).trim())) {
+        if (!/^(?:0|86|\+86)?1[3-9]\d{9}$/.test(String(value).trim())) {
           callback(new Error('手机号格式不正确'))
           return
         }

@@ -1,6 +1,7 @@
 import type { PageResponse } from '@/types/api'
 import type {
   MineVo,
+  NameValueVo,
   RoleCreateRequest,
   RoleQueryParams,
   RoleUpdateRequest,
@@ -368,6 +369,16 @@ export function refreshSysConfigCache(options?: { suppressErrorMessage?: boolean
     url: '/admin/sysConfig/refreshCache',
     method: 'post',
     suppressErrorMessage: options?.suppressErrorMessage,
+  })
+}
+
+export function getPublicSysConfigs(params: { groupCode?: string; configKey?: string }) {
+  return request<NameValueVo[]>({
+    url: '/admin/sysConfig/publicConfig',
+    method: 'get',
+    params,
+    skipAuth: true,
+    suppressErrorMessage: true,
   })
 }
 
