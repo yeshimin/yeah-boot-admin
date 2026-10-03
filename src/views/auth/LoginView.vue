@@ -1,14 +1,13 @@
 <template>
   <div class="login-container">
-    <div class="login-box">
-      <div class="login-header">
-        <h2>管理后台</h2>
-        <p>欢迎回来，请登录</p>
-      </div>
-      <div v-if="loginPageOptions.noticeEnabled && loginPageOptions.noticeContent" class="login-notice">
+    <div class="login-panel">
+      <div
+        v-if="loginPageOptions.noticeEnabled && loginPageOptions.noticeContent"
+        class="login-notice"
+      >
         <el-alert
           :title="loginPageOptions.noticeTitle || '提示'"
-          type="info"
+          type="warning"
           :closable="false"
           show-icon
         >
@@ -17,75 +16,81 @@
           </template>
         </el-alert>
       </div>
-      <el-form
-        ref="loginFormRef"
-        :model="loginForm"
-        :rules="loginRules"
-        class="login-form"
-        @keyup.enter="handleLogin"
-      >
-        <el-form-item prop="username">
-          <el-input
-            v-model="loginForm.username"
-            placeholder="请输入用户名"
-            prefix-icon="User"
-            clearable
-          ></el-input>
-        </el-form-item>
-        <el-form-item prop="password">
-          <el-input
-            v-model="loginForm.password"
-            type="password"
-            placeholder="请输入密码"
-            prefix-icon="Lock"
-            show-password
-          ></el-input>
-        </el-form-item>
-        <el-form-item v-if="captchaEnabled" prop="code">
-          <div class="captcha-row">
+      <div class="login-box">
+        <div class="login-header">
+          <h2>管理后台</h2>
+          <p>欢迎回来，请登录</p>
+        </div>
+        <el-form
+          ref="loginFormRef"
+          :model="loginForm"
+          :rules="loginRules"
+          class="login-form"
+          @keyup.enter="handleLogin"
+        >
+          <el-form-item prop="username">
             <el-input
-              v-model="loginForm.code"
-              placeholder="请输入验证码"
-              prefix-icon="Key"
+              v-model="loginForm.username"
+              placeholder="请输入用户名"
+              prefix-icon="User"
+              clearable
             ></el-input>
-            <button type="button" class="captcha-trigger" @click="loadCaptcha">
-              <img v-if="captchaImage" :src="captchaImage" alt="验证码" class="captcha-image" />
-              <span v-else>获取验证码</span>
-            </button>
-          </div>
-        </el-form-item>
-        <el-form-item class="login-form-extra">
-          <el-checkbox v-model="loginForm.remember">记住用户名</el-checkbox>
-          <div class="login-form-links">
-            <el-link
-              v-if="loginPageOptions.registerEnabled"
+          </el-form-item>
+          <el-form-item prop="password">
+            <el-input
+              v-model="loginForm.password"
+              type="password"
+              placeholder="请输入密码"
+              prefix-icon="Lock"
+              show-password
+            ></el-input>
+          </el-form-item>
+          <el-form-item v-if="captchaEnabled" prop="code">
+            <div class="captcha-row">
+              <el-input
+                v-model="loginForm.code"
+                placeholder="请输入验证码"
+                prefix-icon="Key"
+              ></el-input>
+              <button type="button" class="captcha-trigger" @click="loadCaptcha">
+                <img v-if="captchaImage" :src="captchaImage" alt="验证码" class="captcha-image" />
+                <span v-else>获取验证码</span>
+              </button>
+            </div>
+          </el-form-item>
+          <el-form-item class="login-form-extra">
+            <el-checkbox v-model="loginForm.remember">记住用户名</el-checkbox>
+            <div class="login-form-links">
+              <el-link
+                v-if="loginPageOptions.registerEnabled"
+                type="primary"
+                :underline="false"
+                @click="openRegisterDialog"
+              >
+                注册账号
+              </el-link>
+              <el-link
+                type="primary"
+                :underline="false"
+                class="login-form-forgot"
+                @click="handleForgotPassword"
+              >
+                忘记密码？
+              </el-link>
+            </div>
+          </el-form-item>
+          <el-form-item>
+            <el-button
               type="primary"
-              :underline="false"
-              @click="openRegisterDialog"
+              class="login-form-submit"
+              :loading="loginLoading"
+              @click="handleLogin"
             >
-              注册账号
-            </el-link>
-            <el-link
-              type="primary"
-              :underline="false"
-              class="login-form-forgot"
-              @click="handleForgotPassword"
-            >
-              忘记密码？
-            </el-link>
-          </div>
-        </el-form-item>
-        <el-form-item>
-          <el-button
-            type="primary"
-            class="login-form-submit"
-            :loading="loginLoading"
-            @click="handleLogin"
-          >
-            登录
-          </el-button>
-        </el-form-item>
-      </el-form>
+              登录
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </div>
     </div>
 
     <el-dialog
@@ -97,18 +102,29 @@
       :show-close="!registerLoading"
       @closed="resetRegisterForm"
     >
-      <el-alert
-        title="注册账号仅拥有受限体验权限。"
-        type="warning"
-        :closable="false"
-        show-icon
-      />
-      <el-form ref="registerFormRef" :model="registerForm" :rules="registerRules" class="register-form">
+      <el-alert title="注册账号仅拥有受限体验权限。" type="warning" :closable="false" show-icon />
+      <el-form
+        ref="registerFormRef"
+        :model="registerForm"
+        :rules="registerRules"
+        class="register-form"
+      >
         <el-form-item prop="username">
-          <el-input v-model="registerForm.username" placeholder="请输入用户名" prefix-icon="User" clearable />
+          <el-input
+            v-model="registerForm.username"
+            placeholder="请输入用户名"
+            prefix-icon="User"
+            clearable
+          />
         </el-form-item>
         <el-form-item prop="password">
-          <el-input v-model="registerForm.password" type="password" placeholder="请输入密码" prefix-icon="Lock" show-password />
+          <el-input
+            v-model="registerForm.password"
+            type="password"
+            placeholder="请输入密码"
+            prefix-icon="Lock"
+            show-password
+          />
         </el-form-item>
         <el-form-item prop="confirmPassword">
           <el-input
@@ -123,15 +139,24 @@
           <div class="captcha-row">
             <el-input v-model="registerForm.code" placeholder="请输入验证码" prefix-icon="Key" />
             <button type="button" class="captcha-trigger" @click="loadRegisterCaptcha">
-              <img v-if="registerCaptchaImage" :src="registerCaptchaImage" alt="验证码" class="captcha-image" />
+              <img
+                v-if="registerCaptchaImage"
+                :src="registerCaptchaImage"
+                alt="验证码"
+                class="captcha-image"
+              />
               <span v-else>获取验证码</span>
             </button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button :disabled="registerLoading" @click="registerDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="registerLoading" @click="handleRegister">注册</el-button>
+        <el-button :disabled="registerLoading" @click="registerDialogVisible = false"
+          >取消</el-button
+        >
+        <el-button type="primary" :loading="registerLoading" @click="handleRegister"
+          >注册</el-button
+        >
       </template>
     </el-dialog>
   </div>
@@ -192,11 +217,11 @@ const registerForm = reactive({
 const loginRules = reactive<FormRules>({
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
+    { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' },
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 32, message: '密码长度在 6 到 32 个字符', trigger: 'blur' }
+    { min: 6, max: 32, message: '密码长度在 6 到 32 个字符', trigger: 'blur' },
   ],
   code: [
     {
@@ -212,18 +237,18 @@ const loginRules = reactive<FormRules>({
         callback()
       },
       trigger: 'blur',
-    }
-  ]
+    },
+  ],
 })
 
 const registerRules = reactive<FormRules>({
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 2, max: 32, message: '用户名长度在 2 到 32 个字符', trigger: 'blur' }
+    { min: 2, max: 32, message: '用户名长度在 2 到 32 个字符', trigger: 'blur' },
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 32, message: '密码长度在 6 到 32 个字符', trigger: 'blur' }
+    { min: 6, max: 32, message: '密码长度在 6 到 32 个字符', trigger: 'blur' },
   ],
   confirmPassword: [
     {
@@ -239,11 +264,9 @@ const registerRules = reactive<FormRules>({
         callback()
       },
       trigger: 'blur',
-    }
+    },
   ],
-  code: [
-    { required: true, message: '请输入验证码', trigger: 'blur' }
-  ]
+  code: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
 })
 
 const redirectPath = () => {
@@ -258,7 +281,9 @@ const loadCaptcha = async () => {
     loginForm.key = captcha.key || ''
     loginForm.code = ''
     captchaImage.value = captcha.image
-      ? (captcha.image.startsWith('data:image/') ? captcha.image : `data:image/png;base64,${captcha.image}`)
+      ? captcha.image.startsWith('data:image/')
+        ? captcha.image
+        : `data:image/png;base64,${captcha.image}`
       : ''
   } catch {
     captchaEnabled.value = false
@@ -293,7 +318,9 @@ const loadRegisterCaptcha = async () => {
     registerForm.key = captcha.data.key || ''
     registerForm.code = ''
     registerCaptchaImage.value = captcha.data.image
-      ? (captcha.data.image.startsWith('data:image/') ? captcha.data.image : `data:image/png;base64,${captcha.data.image}`)
+      ? captcha.data.image.startsWith('data:image/')
+        ? captcha.data.image
+        : `data:image/png;base64,${captcha.data.image}`
       : ''
   } catch {
     registerForm.key = ''
@@ -408,7 +435,7 @@ onMounted(() => {
 }
 
 .login-box {
-  width: 400px;
+  width: 100%;
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
@@ -436,8 +463,15 @@ onMounted(() => {
   padding: 30px;
 }
 
+.login-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(400px, calc(100vw - 32px));
+}
+
 .login-notice {
-  padding: 20px 30px 0;
+  filter: drop-shadow(0 8px 18px rgba(52, 37, 8, 0.24));
 }
 
 .login-notice-content {
