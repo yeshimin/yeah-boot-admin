@@ -915,7 +915,11 @@ void loadAreaTree()
   display: flex;
   flex-direction: column;
   background-color: #fff;
-  padding: 20px;
+  padding: 10px 20px 20px;
+}
+
+.action-bar {
+  margin-bottom: 10px;
 }
 
 .area-layout {

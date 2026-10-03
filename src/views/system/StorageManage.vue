@@ -59,9 +59,6 @@
         >
           批量删除
         </el-button>
-        <el-button @click="getStorageList">
-          <el-icon><Refresh /></el-icon>刷新
-        </el-button>
       </div>
     </div>
 
@@ -157,7 +154,7 @@
               v-for="option in STORAGE_TYPE_OPTIONS"
               :key="option.value"
               :label="option.label"
-              :value="String(option.value)"
+              :value="option.value"
             />
           </el-select>
         </el-form-item>
@@ -223,7 +220,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { Refresh, Upload } from '@element-plus/icons-vue'
+import { Upload } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -684,12 +681,20 @@ void getStorageList()
 }
 
 .search-bar {
-  margin-bottom: 20px;
+  margin-bottom: 10px;
+}
+
+.action-bar {
+  margin-bottom: 10px;
 }
 
 .search-form {
   display: flex;
   align-items: center;
+}
+
+.search-form :deep(.el-form-item) {
+  margin-bottom: 0;
 }
 
 .table-container {
