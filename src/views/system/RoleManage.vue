@@ -181,6 +181,7 @@
           node-key="nodeKey"
           :props="permissionTreeProps"
           :default-checked-keys="checkedPermissions"
+          @check="handlePermissionCheck"
         >
           <template #default="{ data }">
             <el-tooltip :content="data.remark || ''" :disabled="!data.remark" placement="right" :show-after="300">
@@ -328,6 +329,7 @@ const permissionDialogVisible = ref(false)
 const permissionTreeRef = ref<TreeInstance>()
 const permissionSubmitting = ref(false)
 const checkedPermissions = ref<string[]>([])
+const halfCheckedPermissions = ref<string[]>([])
 const disabledCheckedViewResIds = ref<number[]>([])
 const disabledCheckedMountIds = ref<number[]>([])
 const currentRole = ref<SysRoleListItem | null>(null)
@@ -587,6 +589,57 @@ function collectDisplayCheckedKeys(nodes: ResourceTreeNode[]): string[] {
   })
 }
 
+function collectDisplayHalfCheckedKeys(nodes: ResourceTreeNode[]): string[] {
+  return nodes.flatMap((node) => {
+    const current = node.checked && node.children?.length && !isFullyChecked(node)
+      ? [getPermissionNodeKey(node)]
+      : []
+    const children = node.children ? collectDisplayHalfCheckedKeys(node.children) : []
+    return [...current, ...children]
+  })
+}
+
+function findViewPermissionNodeByResId(nodes: ResourceTreeNode[], resId: number): ResourceTreeNode | undefined {
+  for (const node of nodes) {
+    if (!isMountedPermissionNode(node) && getPermissionResId(node) === resId) {
+      return node
+    }
+    const child = node.children ? findViewPermissionNodeByResId(node.children, resId) : undefined
+    if (child) {
+      return child
+    }
+  }
+  return undefined
+}
+
+function handlePermissionCheck(
+  node: ResourceTreeNode,
+  checkedState: { checkedKeys: Array<string | number> },
+) {
+  if (!isMountedPermissionNode(node)) {
+    return
+  }
+
+  const nodeKey = getPermissionNodeKey(node)
+  if (checkedState.checkedKeys.map(String).includes(nodeKey)) {
+    return
+  }
+
+  const parent = findViewPermissionNodeByResId(permissionTree.value, Number(node.parentId))
+  const tree = permissionTreeRef.value
+  if (!parent || !tree) {
+    return
+  }
+
+  const hasCheckedMountedChild = (parent.children || []).some((child) => (
+    isMountedPermissionNode(child)
+      && checkedState.checkedKeys.map(String).includes(getPermissionNodeKey(child))
+  ))
+  if (!hasCheckedMountedChild) {
+    tree.getNode(getPermissionNodeKey(parent))?.setChecked('half', false)
+  }
+}
+
 function collectSelectedPermissionIds(nodes: ResourceTreeNode[]) {
   const viewResIds = new Set<number>()
   const mountIds = new Set<number>()
@@ -653,12 +706,16 @@ const handleAssignPermission = async (row: SysRoleListItem) => {
   const response = await queryRoleResourceTree(row.id)
   permissionTree.value = response.data
   checkedPermissions.value = collectDisplayCheckedKeys(response.data)
+  halfCheckedPermissions.value = collectDisplayHalfCheckedKeys(response.data)
   const disabledChecked = collectDisabledCheckedPermissionIds(response.data)
   disabledCheckedViewResIds.value = disabledChecked.viewResIds
   disabledCheckedMountIds.value = disabledChecked.mountIds
   permissionDialogVisible.value = true
   await nextTick()
   permissionTreeRef.value?.setCheckedKeys(checkedPermissions.value)
+  halfCheckedPermissions.value.forEach((key) => {
+    permissionTreeRef.value?.getNode(key)?.setChecked('half', false)
+  })
 }
 
 // 提交角色表单
@@ -774,6 +831,7 @@ const handleDialogClose = () => {
 // 关闭权限分配对话框
 const handlePermissionDialogClose = () => {
   checkedPermissions.value = []
+  halfCheckedPermissions.value = []
   disabledCheckedViewResIds.value = []
   disabledCheckedMountIds.value = []
   currentRole.value = null
