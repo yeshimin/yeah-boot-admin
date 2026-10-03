@@ -173,6 +173,13 @@
       :show-close="!permissionSubmitting"
       @closed="handlePermissionDialogClose"
     >
+      <el-alert
+        class="permission-tree-tip"
+        title="禁用资源可预先授权，资源重新启用后将自动生效。"
+        type="info"
+        :closable="false"
+        show-icon
+      />
       <div class="permission-tree-container">
         <el-tree
           ref="permissionTreeRef"
@@ -232,11 +239,7 @@ import type {
 } from '@/types/upms'
 import { getRequestErrorMessage as getDeleteErrorMessage, isUserCancel } from '@/utils/error'
 import { buildConditions } from '@/utils/query'
-import { formatDisabledName, isDisabledStatus } from '@/utils/status'
-
-function isDisabledResource(data: ResourceTreeNode) {
-  return isDisabledStatus(data.status)
-}
+import { formatDisabledName } from '@/utils/status'
 
 function formatResourceTreeLabel(data: ResourceTreeNode) {
   const typeSuffix = data.typeName ? `（${data.typeName}）` : ''
@@ -330,8 +333,6 @@ const permissionTreeRef = ref<TreeInstance>()
 const permissionSubmitting = ref(false)
 const checkedPermissions = ref<string[]>([])
 const halfCheckedPermissions = ref<string[]>([])
-const disabledCheckedViewResIds = ref<number[]>([])
-const disabledCheckedMountIds = ref<number[]>([])
 const currentRole = ref<SysRoleListItem | null>(null)
 
 // 权限树数据
@@ -341,7 +342,6 @@ const permissionTree = ref<ResourceTreeNode[]>([])
 const permissionTreeProps = {
   children: 'children',
   label: formatResourceTreeLabel,
-  disabled: isDisabledResource,
 }
 
 // 页面加载时获取角色列表
@@ -591,12 +591,23 @@ function collectDisplayCheckedKeys(nodes: ResourceTreeNode[]): string[] {
 
 function collectDisplayHalfCheckedKeys(nodes: ResourceTreeNode[]): string[] {
   return nodes.flatMap((node) => {
-    const current = node.checked && node.children?.length && !isFullyChecked(node)
+    const current = node.checked && node.children?.length && !isDisplayFullyChecked(node)
       ? [getPermissionNodeKey(node)]
       : []
     const children = node.children ? collectDisplayHalfCheckedKeys(node.children) : []
     return [...current, ...children]
   })
+}
+
+/**
+ * Element Plus 根据已勾选的子节点计算父节点展示状态。
+ * 接口授权会让所属视图节点在树中呈现为已勾选，即使该视图没有独立授权记录。
+ */
+function isDisplayFullyChecked(node: ResourceTreeNode): boolean {
+  if (!node.children?.length) {
+    return Boolean(node.checked)
+  }
+  return node.children.every(isDisplayFullyChecked)
 }
 
 function findViewPermissionNodeByResId(nodes: ResourceTreeNode[], resId: number): ResourceTreeNode | undefined {
@@ -665,38 +676,6 @@ function collectSelectedPermissionIds(nodes: ResourceTreeNode[]) {
   }
 }
 
-function collectDisabledCheckedPermissionIds(nodes: ResourceTreeNode[]) {
-  const viewResIds = new Set<number>()
-  const mountIds = new Set<number>()
-
-  const walk = (items: ResourceTreeNode[]) => {
-    items.forEach((node) => {
-      if (isDisabledResource(node) && node.checked) {
-        if (isMountedPermissionNode(node)) {
-          const mountId = getPermissionMountId(node)
-          if (Number.isFinite(mountId) && mountId > 0) {
-            mountIds.add(mountId)
-          }
-        } else {
-          const resId = getPermissionResId(node)
-          if (Number.isFinite(resId)) {
-            viewResIds.add(resId)
-          }
-        }
-      }
-      if (node.children?.length) {
-        walk(node.children)
-      }
-    })
-  }
-
-  walk(nodes)
-  return {
-    viewResIds: Array.from(viewResIds),
-    mountIds: Array.from(mountIds),
-  }
-}
-
 const handleAssignPermission = async (row: SysRoleListItem) => {
   if (!canAssignRoleResources.value) {
     warnNoPermission()
@@ -707,9 +686,6 @@ const handleAssignPermission = async (row: SysRoleListItem) => {
   permissionTree.value = response.data
   checkedPermissions.value = collectDisplayCheckedKeys(response.data)
   halfCheckedPermissions.value = collectDisplayHalfCheckedKeys(response.data)
-  const disabledChecked = collectDisabledCheckedPermissionIds(response.data)
-  disabledCheckedViewResIds.value = disabledChecked.viewResIds
-  disabledCheckedMountIds.value = disabledChecked.mountIds
   permissionDialogVisible.value = true
   await nextTick()
   permissionTreeRef.value?.setCheckedKeys(checkedPermissions.value)
@@ -782,12 +758,10 @@ const handleSubmitPermission = async () => {
     const selectedViewResIds = Array.from(new Set([
       ...checkedSelection.viewResIds,
       ...halfCheckedSelection.viewResIds,
-      ...disabledCheckedViewResIds.value,
     ]))
     const selectedMountIds = Array.from(new Set([
       ...checkedSelection.mountIds,
       ...halfCheckedSelection.mountIds,
-      ...disabledCheckedMountIds.value,
     ]))
 
     await setRoleResources(role.id, selectedViewResIds, selectedMountIds, { suppressErrorMessage: true })
@@ -832,8 +806,6 @@ const handleDialogClose = () => {
 const handlePermissionDialogClose = () => {
   checkedPermissions.value = []
   halfCheckedPermissions.value = []
-  disabledCheckedViewResIds.value = []
-  disabledCheckedMountIds.value = []
   currentRole.value = null
 }
 </script>
@@ -869,6 +841,10 @@ const handlePermissionDialogClose = () => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+.permission-tree-tip {
+  margin-bottom: 12px;
 }
 
 .permission-tree-container {
