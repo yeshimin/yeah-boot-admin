@@ -96,6 +96,28 @@ src
 ## 开发约定
 
 - 页面展示权限使用视图权限标识判断，接口请求由后端执行最终鉴权。
-- 新增页面时同时维护路由组件映射和资源配置。
+- 新增业务页面时维护 API、类型和资源配置；仅内置系统页面需要补充静态路由组件映射。
 - 通用交互优先复用已有请求、权限、下载和会话处理工具。
 - 提交前至少执行类型检查和 ESLint 检查。
+
+## 二次开发与升级
+
+二次开发应将内置后台视为上游基线。项目业务优先按领域新增文件，避免直接修改认证、请求、路由和布局基础设施：
+
+```text
+src
+├── api/<domain>.ts
+├── types/<domain>.ts
+└── views/<domain>/index.vue
+```
+
+- 业务页面、表单和领域组件放入 `src/views/<domain>/`。
+- 接口调用集中到 `src/api/<domain>.ts`，类型放入 `src/types/<domain>.ts`。
+- 后端资源配置中的组件路径使用 `<domain>/index`，页面路径避免使用保留的 `/system/**` 前缀。
+- 页面按钮使用 `view:` 权限控制；后端接口仍配置独立的 `api:` 权限。
+
+除通用缺陷修复外，不要将项目业务直接写入 `src/utils/request.ts`、`src/utils/auth.ts`、`src/stores/auth.ts`、`src/router/index.ts` 的系统路由映射或 `src/components/layout/`。这些文件属于框架基础设施，修改会显著增加后续合并上游版本的成本。
+
+升级时先在独立分支合并上游，再恢复自定义的 `api`、`types`、`views` 与资源配置；随后执行类型检查、Lint、生产构建，并以完整权限和只读权限角色验证菜单、按钮和接口行为。
+
+详细步骤见[新增业务页面](https://docs.yeahboot.com/frontend/new-page)、[请求与登录状态](https://docs.yeahboot.com/frontend/request-auth)和[新增业务模块](https://docs.yeahboot.com/backend/new-module)。
